@@ -1,6 +1,7 @@
 import { COLORS, GAME_TITLE, ITEM_STATE, PHASE, type ItemType } from "../config.ts";
 import type { CanvasSurface } from "../core/canvas.ts";
 import { drawDebugOverlay } from "../debug/overlay.ts";
+import { drawGameOver, drawHud } from "./hud.ts";
 import type { Item } from "../game/item.ts";
 import type { BinLayout, PlayfieldLayout, Rect } from "../game/layout.ts";
 import type { World } from "../game/world.ts";
@@ -27,7 +28,18 @@ export function drawScene(
   drawBelt(ctx, layout.belt, world.elapsed);
   drawBins(ctx, layout.bins, world);
   drawItems(ctx, world.items);
-  drawDebugOverlay(ctx, surface, fps, world.items.length, world.lastDrop);
+  drawHud(ctx, world, w);
+  drawDebugOverlay(
+    ctx,
+    surface,
+    fps,
+    world.items.length,
+    world.lastDrop,
+    world.coins,
+    world.combo,
+    world.lives,
+  );
+  drawGameOver(ctx, world, w, surface.cssHeight);
 }
 
 function drawTable(ctx: CanvasRenderingContext2D, layout: PlayfieldLayout): void {
@@ -44,7 +56,7 @@ function drawTitle(ctx: CanvasRenderingContext2D, width: number): void {
 
   ctx.fillStyle = COLORS.muted;
   ctx.font = "13px system-ui, sans-serif";
-  ctx.fillText(`PHASE ${PHASE} — перетащи предмет в свой контейнер`, width / 2, 42);
+  ctx.fillText(`PHASE ${PHASE} — сортируй, копи монеты, не теряй жизни`, width / 2, 42);
 }
 
 function drawBelt(ctx: CanvasRenderingContext2D, belt: Rect, elapsed: number): void {

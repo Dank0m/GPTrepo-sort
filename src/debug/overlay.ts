@@ -8,6 +8,9 @@ export function drawDebugOverlay(
   fps: number,
   itemCount = 0,
   lastDrop: DropKind | "none" = "none",
+  coins = 0,
+  combo = 0,
+  lives = 0,
 ): void {
   const { cssWidth, cssHeight, bufferWidth, bufferHeight, dpr } = surface.metrics;
   const lines = [
@@ -18,6 +21,7 @@ export function drawDebugOverlay(
     `PHASE ${PHASE}`,
     `ITEMS ${itemCount}`,
     `DROP ${lastDrop}`,
+    `COIN ${coins}  x${combo}  HP ${lives}`,
   ];
 
   ctx.save();
@@ -27,7 +31,7 @@ export function drawDebugOverlay(
 
   const padding = 10;
   const lineHeight = 16;
-  const boxW = 168;
+  const boxW = 188;
   const boxH = padding * 2 + lines.length * lineHeight;
 
   ctx.fillStyle = COLORS.panel;

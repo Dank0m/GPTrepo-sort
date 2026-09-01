@@ -1,5 +1,5 @@
-/** Current development phase. PHASE 2: drag-sort onto bins. No economy. */
-export const PHASE = 2;
+/** Current development phase. PHASE 3: coins, combo, lives. No upgrades. */
+export const PHASE = 3;
 
 export const GAME_TITLE = "Sort & Upgrade";
 
@@ -28,6 +28,11 @@ export const INPUT = {
   feedbackSeconds: 0.35,
 } as const;
 
+export const ECONOMY = {
+  coinValue: 10,
+  startLives: 3,
+} as const;
+
 export const COLORS = {
   background: "#12141a",
   table: "#181c26",
@@ -38,6 +43,8 @@ export const COLORS = {
   debug: "#b8f0c2",
   dropOk: "#5dcc7a",
   dropBad: "#e85d4c",
+  gold: "#e8c84c",
+  heart: "#e85d4c",
   belt: "#2a2f3c",
   beltEdge: "#3d4456",
   beltStripe: "#3a4154",

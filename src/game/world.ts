@@ -1,6 +1,7 @@
 import {
   BELT,
   BIN_CAPACITY,
+  ECONOMY,
   INPUT,
   ITEM_STATE,
   ITEM_TYPES,
@@ -11,28 +12,38 @@ import { hitBin, hitItem } from "./hit.ts";
 import { createItem, type Item } from "./item.ts";
 import { computeLayout, type PlayfieldLayout } from "./layout.ts";
 
-export type DropKind = "correct" | "wrong" | "full";
+export type DropKind = "correct" | "wrong" | "full" | "overflow";
+export type SessionStatus = "playing" | "over";
 
 export type DropFeedback = {
-  binType: ItemType;
+  binType: ItemType | null;
   kind: DropKind;
   until: number;
 };
 
 export class World {
   items: Item[] = [];
-  readonly bins: Bin[];
+  bins: Bin[] = [];
   layout: PlayfieldLayout;
   elapsed = 0;
   grabbed: Item | null = null;
   hoverBinType: ItemType | null = null;
   feedback: DropFeedback | null = null;
   lastDrop: DropKind | "none" = "none";
+  coins = 0;
+  combo = 0;
+  lives: number = ECONOMY.startLives;
+  status: SessionStatus = "playing";
+  lastGain = 0;
   private spawnTimer: number = BELT.spawnInterval;
 
   constructor(width: number, height: number) {
     this.layout = computeLayout(width, height);
-    this.bins = ITEM_TYPES.map((type) => createBin(type, BIN_CAPACITY));
+    this.resetSession();
+  }
+
+  restart(): void {
+    this.resetSession();
   }
 
   resize(width: number, height: number): void {
@@ -52,6 +63,9 @@ export class World {
     if (this.feedback && this.elapsed >= this.feedback.until) {
       this.feedback = null;
     }
+    if (this.status !== "playing") {
+      return;
+    }
     this.moveBelt(dt);
     this.spawnTimer += dt;
     if (this.canSpawn()) {
@@ -61,6 +75,10 @@ export class World {
   }
 
   pointerDown(x: number, y: number): boolean {
+    if (this.status === "over") {
+      this.restart();
+      return false;
+    }
     if (this.grabbed) {
       return true;
     }
@@ -78,7 +96,7 @@ export class World {
   }
 
   pointerMove(x: number, y: number): void {
-    if (!this.grabbed) {
+    if (!this.grabbed || this.status !== "playing") {
       return;
     }
     this.grabbed.x = x;
@@ -93,6 +111,10 @@ export class World {
     }
     this.grabbed = null;
     this.hoverBinType = null;
+    if (this.status !== "playing") {
+      this.returnToBelt(held);
+      return;
+    }
 
     const slot = hitBin(this.layout.bins, x, y);
     if (!slot) {
@@ -108,7 +130,8 @@ export class World {
 
     if (held.type !== slot.type) {
       this.setFeedback(slot.type, "wrong");
-      this.returnToBelt(held);
+      this.removeItem(held);
+      this.applyMiss();
       return;
     }
 
@@ -120,7 +143,8 @@ export class World {
 
     bin.filled += 1;
     held.state = ITEM_STATE.InBin;
-    this.items = this.items.filter((item) => item.id !== held.id);
+    this.removeItem(held);
+    this.applyCorrect();
     this.setFeedback(slot.type, "correct");
   }
 
@@ -133,13 +157,50 @@ export class World {
     this.hoverBinType = null;
   }
 
-  private setFeedback(binType: ItemType, kind: DropKind): void {
+  private resetSession(): void {
+    this.items = [];
+    this.bins = ITEM_TYPES.map((type) => createBin(type, BIN_CAPACITY));
+    this.grabbed = null;
+    this.hoverBinType = null;
+    this.feedback = null;
+    this.lastDrop = "none";
+    this.coins = 0;
+    this.combo = 0;
+    this.lives = ECONOMY.startLives;
+    this.status = "playing";
+    this.lastGain = 0;
+    this.elapsed = 0;
+    this.spawnTimer = BELT.spawnInterval;
+  }
+
+  private applyCorrect(): void {
+    this.combo += 1;
+    this.lastGain = ECONOMY.coinValue * this.combo;
+    this.coins += this.lastGain;
+  }
+
+  private applyMiss(): void {
+    this.combo = 0;
+    this.lastGain = 0;
+    this.lives -= 1;
+    if (this.lives <= 0) {
+      this.lives = 0;
+      this.status = "over";
+      this.grabbed = null;
+    }
+  }
+
+  private setFeedback(binType: ItemType | null, kind: DropKind): void {
     this.lastDrop = kind;
     this.feedback = {
       binType,
       kind,
       until: this.elapsed + INPUT.feedbackSeconds,
     };
+  }
+
+  private removeItem(item: Item): void {
+    this.items = this.items.filter((entry) => entry.id !== item.id);
   }
 
   private returnToBelt(item: Item): void {
@@ -155,24 +216,37 @@ export class World {
     const belt = this.layout.belt;
     const centerY = belt.y + belt.height / 2;
     const endX = belt.x + belt.width + this.layout.itemSize;
+    const kept: Item[] = [];
 
     for (const item of this.items) {
+      if (item.state === ITEM_STATE.InHand) {
+        kept.push(item);
+        continue;
+      }
       if (item.state !== ITEM_STATE.OnBelt) {
+        continue;
+      }
+      if (this.status !== "playing") {
+        kept.push(item);
         continue;
       }
       item.x += BELT.speed * dt;
       item.y = centerY;
+      if (item.x >= endX) {
+        this.setFeedback(null, "overflow");
+        this.applyMiss();
+        continue;
+      }
+      kept.push(item);
     }
 
-    this.items = this.items.filter((item) => {
-      if (item.state === ITEM_STATE.InHand) {
-        return true;
-      }
-      return item.state !== ITEM_STATE.OnBelt || item.x < endX;
-    });
+    this.items = kept;
   }
 
   private canSpawn(): boolean {
+    if (this.status !== "playing") {
+      return false;
+    }
     if (this.spawnTimer < BELT.spawnInterval) {
       return false;
     }
