@@ -1,11 +1,13 @@
 import type { CanvasSurface } from "../core/canvas.ts";
 import { COLORS, PHASE } from "../config.ts";
+import type { DropKind } from "../game/world.ts";
 
 export function drawDebugOverlay(
   ctx: CanvasRenderingContext2D,
   surface: CanvasSurface,
   fps: number,
   itemCount = 0,
+  lastDrop: DropKind | "none" = "none",
 ): void {
   const { cssWidth, cssHeight, bufferWidth, bufferHeight, dpr } = surface.metrics;
   const lines = [
@@ -15,6 +17,7 @@ export function drawDebugOverlay(
     `DPR  ${dpr.toFixed(2)}`,
     `PHASE ${PHASE}`,
     `ITEMS ${itemCount}`,
+    `DROP ${lastDrop}`,
   ];
 
   ctx.save();

@@ -1,7 +1,6 @@
-import { COLORS, GAME_TITLE, PHASE, type ItemType } from "../config.ts";
+import { COLORS, GAME_TITLE, ITEM_STATE, PHASE, type ItemType } from "../config.ts";
 import type { CanvasSurface } from "../core/canvas.ts";
 import { drawDebugOverlay } from "../debug/overlay.ts";
-import type { Bin } from "../game/bin.ts";
 import type { Item } from "../game/item.ts";
 import type { BinLayout, PlayfieldLayout, Rect } from "../game/layout.ts";
 import type { World } from "../game/world.ts";
@@ -17,18 +16,18 @@ export function drawScene(
   world: World,
   fps: number,
 ): void {
-  const { ctx, cssWidth: w, cssHeight: h } = surface;
+  const { ctx, cssWidth: w } = surface;
   const layout = world.layout;
 
   ctx.fillStyle = COLORS.background;
-  ctx.fillRect(0, 0, w, h);
+  ctx.fillRect(0, 0, w, surface.cssHeight);
 
   drawTable(ctx, layout);
   drawTitle(ctx, w);
   drawBelt(ctx, layout.belt, world.elapsed);
-  drawBins(ctx, layout.bins, world.bins);
+  drawBins(ctx, layout.bins, world);
   drawItems(ctx, world.items);
-  drawDebugOverlay(ctx, surface, fps, world.items.length);
+  drawDebugOverlay(ctx, surface, fps, world.items.length, world.lastDrop);
 }
 
 function drawTable(ctx: CanvasRenderingContext2D, layout: PlayfieldLayout): void {
@@ -45,7 +44,7 @@ function drawTitle(ctx: CanvasRenderingContext2D, width: number): void {
 
   ctx.fillStyle = COLORS.muted;
   ctx.font = "13px system-ui, sans-serif";
-  ctx.fillText(`PHASE ${PHASE} — лента слева направо, без сортировки`, width / 2, 42);
+  ctx.fillText(`PHASE ${PHASE} — перетащи предмет в свой контейнер`, width / 2, 42);
 }
 
 function drawBelt(ctx: CanvasRenderingContext2D, belt: Rect, elapsed: number): void {
@@ -79,19 +78,41 @@ function drawBelt(ctx: CanvasRenderingContext2D, belt: Rect, elapsed: number): v
 function drawBins(
   ctx: CanvasRenderingContext2D,
   layouts: BinLayout[],
-  bins: Bin[],
+  world: World,
 ): void {
   for (const slot of layouts) {
-    const bin = bins.find((entry) => entry.type === slot.type);
+    const bin = world.bins.find((entry) => entry.type === slot.type);
     const filled = bin?.filled ?? 0;
     const capacity = bin?.capacity ?? slot.capacity;
     const color = COLORS.item[slot.type];
+    const hovering = world.hoverBinType === slot.type;
+    const held = world.grabbed;
+    const matchHover = hovering && held !== null && held.type === slot.type;
+    const feedback = world.feedback?.binType === slot.type ? world.feedback : null;
 
     roundRect(ctx, slot.x, slot.y, slot.width, slot.height, 12);
     ctx.fillStyle = COLORS.panel;
     ctx.fill();
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 3;
+
+    if (feedback) {
+      ctx.fillStyle = feedback.kind === "correct" ? COLORS.dropOk : COLORS.dropBad;
+      ctx.globalAlpha = 0.28;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    } else if (hovering && held) {
+      ctx.fillStyle = matchHover ? COLORS.dropOk : COLORS.dropBad;
+      ctx.globalAlpha = 0.18;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.strokeStyle =
+      feedback?.kind === "correct" || matchHover
+        ? COLORS.dropOk
+        : feedback || (hovering && held)
+          ? COLORS.dropBad
+          : color;
+    ctx.lineWidth = hovering || feedback ? 5 : 3;
     ctx.stroke();
 
     const mouthH = 18;
@@ -117,8 +138,16 @@ function drawBins(
 }
 
 function drawItems(ctx: CanvasRenderingContext2D, items: Item[]): void {
+  const held: Item[] = [];
   for (const item of items) {
+    if (item.state === ITEM_STATE.InHand) {
+      held.push(item);
+      continue;
+    }
     drawTypeShape(ctx, item.type, item.x, item.y, item.size * 0.5);
+  }
+  for (const item of held) {
+    drawTypeShape(ctx, item.type, item.x, item.y, item.size * 0.58);
   }
 }
 

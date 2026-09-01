@@ -1,5 +1,6 @@
 import { CanvasSurface } from "./canvas.ts";
 import { GameLoop } from "./loop.ts";
+import { canvasPoint } from "./pointer.ts";
 import { World } from "../game/world.ts";
 import { drawScene } from "../render/scene.ts";
 
@@ -16,6 +17,7 @@ export class App {
       render: () => this.render(),
     });
     this.bindResize();
+    this.bindPointer();
   }
 
   start(): void {
@@ -32,6 +34,39 @@ export class App {
     window.addEventListener("resize", onResize);
     window.addEventListener("orientationchange", onResize);
     window.visualViewport?.addEventListener("resize", onResize);
+  }
+
+  private bindPointer(): void {
+    const canvas = this.surface.canvas;
+    canvas.style.cursor = "grab";
+
+    canvas.addEventListener("pointerdown", (event) => {
+      const point = canvasPoint(canvas, event);
+      if (this.world.pointerDown(point.x, point.y)) {
+        canvas.setPointerCapture(event.pointerId);
+        canvas.style.cursor = "grabbing";
+        event.preventDefault();
+      }
+    });
+
+    canvas.addEventListener("pointermove", (event) => {
+      const point = canvasPoint(canvas, event);
+      this.world.pointerMove(point.x, point.y);
+    });
+
+    const release = (event: PointerEvent): void => {
+      if (this.world.grabbed) {
+        const point = canvasPoint(canvas, event);
+        this.world.pointerUp(point.x, point.y);
+      }
+      canvas.style.cursor = "grab";
+    };
+
+    canvas.addEventListener("pointerup", release);
+    canvas.addEventListener("pointercancel", () => {
+      this.world.pointerCancel();
+      canvas.style.cursor = "grab";
+    });
   }
 
   private update(dt: number): void {
