@@ -212,7 +212,6 @@ export class World implements AdHost {
     }
     this.elapsed += dt;
     this.fx.update(dt);
-    this.updateFlights(dt);
     if (this.feedback && this.elapsed >= this.feedback.until) {
       this.feedback = null;
     }
@@ -222,10 +221,15 @@ export class World implements AdHost {
     if (this.paused) {
       return;
     }
+    if (this.beltFrozen) {
+      this.rescueBeltAfterContinue();
+      return;
+    }
     if (this.continueUntilMs > 0 && performance.now() >= this.continueUntilMs) {
       this.continueUntilMs = 0;
       this.rescueBeltAfterContinue();
     }
+    this.updateFlights(dt);
     if (this.dumpOffer) {
       this.dumpOffer.remaining -= dt;
       if (this.dumpOffer.remaining <= 0) {
@@ -353,6 +357,10 @@ export class World implements AdHost {
     }
 
     if (held.type !== slot.type) {
+      if (this.beltFrozen) {
+        this.returnToBelt(held);
+        return;
+      }
       this.setFeedback(slot.type, "wrong");
       this.fx.burst(held.x, held.y, COLORS.dropBad, 10);
       this.fx.float(slot.x + slot.width / 2, slot.y + slot.height * 0.35, "Мимо", COLORS.dropBad, 28, 1.1);
@@ -463,6 +471,11 @@ export class World implements AdHost {
   }
 
   private applyMiss(): void {
+    if (this.beltFrozen) {
+      this.combo = 0;
+      this.lastGain = 0;
+      return;
+    }
     this.combo = 0;
     this.lastGain = 0;
     this.lives -= 1;
@@ -522,7 +535,7 @@ export class World implements AdHost {
     const half = this.layout.itemSize * 0.5;
     const gap = minGap(this.levels);
     const spawnX = belt.x + half;
-    const safeEnd = belt.x + belt.width * 0.52;
+    const safeEnd = belt.x + belt.width * 0.4;
     const onBelt = this.items
       .filter((item) => item.state === ITEM_STATE.OnBelt)
       .sort((a, b) => a.x - b.x);

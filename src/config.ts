@@ -7,7 +7,7 @@ export const ADS = {
   dumpOfferSeconds: 5,
   mockDelayMs: 650,
   /** After Continue, belt is frozen so overflow cannot spend the extra life. */
-  continueGraceSeconds: 4,
+  continueGraceSeconds: 5,
 } as const;
 
 export const GAME_TITLE = "Sort & Upgrade";
