@@ -90,3 +90,4 @@
 - [x] Рекорд `{ bestCoins, bestCombo, gamesPlayed }`: cloud `setData` + `localStorage`
 - [x] `GameplayAPI.start/stop` на паузе, game over, рекламе
 - [x] `LoadingAPI.ready()` когда канвас уже играбелен
+- [x] RU / EN: строки в `src/i18n`, кнопка с флагами в HUD, автодетект SDK + `localStorage`

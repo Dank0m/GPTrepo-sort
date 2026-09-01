@@ -22,6 +22,7 @@ export type PlayfieldLayout = {
   hud: Rect;
   mute: Rect;
   pause: Rect;
+  lang: Rect;
   belt: Rect;
   bins: BinLayout[];
   shop: Rect;
@@ -60,6 +61,12 @@ export function computeLayout(
   };
   const pause: Rect = {
     x: mute.x - 8 - muteSize,
+    y: mute.y,
+    width: muteSize,
+    height: muteSize,
+  };
+  const lang: Rect = {
+    x: pause.x - 8 - muteSize,
     y: mute.y,
     width: muteSize,
     height: muteSize,
@@ -122,6 +129,7 @@ export function computeLayout(
     hud,
     mute,
     pause,
+    lang,
     belt,
     bins,
     shop,

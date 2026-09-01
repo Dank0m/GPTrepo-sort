@@ -1,4 +1,5 @@
-import { COLORS, GAME_TITLE, ITEM_STATE, TYPE_LABEL, type ItemType } from "../config.ts";
+import { COLORS, GAME_TITLE, ITEM_STATE, type ItemType } from "../config.ts";
+import { strings } from "../i18n/locale.ts";
 import type { CanvasSurface } from "../core/canvas.ts";
 import { drawDebugOverlay } from "../debug/overlay.ts";
 import { beltSpeed } from "../game/upgrades.ts";
@@ -184,14 +185,14 @@ function drawBins(
       ctx.font = `700 ${slot.width < 90 ? 11 : 14}px ui-rounded, system-ui, sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "bottom";
-      ctx.fillText(TYPE_LABEL[slot.type], iconX, slot.y + slot.height - 22);
+      ctx.fillText(strings().types[slot.type], iconX, slot.y + slot.height - 22);
     }
 
     ctx.fillStyle = full ? COLORS.gold : COLORS.muted;
     ctx.font = `${compact ? 10 : 12}px ui-rounded, system-ui, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
-    ctx.fillText(full ? "ПОЛНО" : `${filled}/${capacity}`, iconX, slot.y + slot.height - (compact ? 6 : 8));
+    ctx.fillText(full ? strings().full : `${filled}/${capacity}`, iconX, slot.y + slot.height - (compact ? 6 : 8));
   }
 }
 
@@ -269,15 +270,16 @@ function drawDump(ctx: CanvasRenderingContext2D, world: World, width: number, he
   ctx.font = "800 34px ui-rounded, system-ui, sans-serif";
   ctx.strokeStyle = "#12141a";
   ctx.lineWidth = 6;
-  ctx.strokeText("ПОЛНЫЙ НАБОР", 0, -22);
-  ctx.fillText("ПОЛНЫЙ НАБОР", 0, -22);
+  const copy = strings();
+  ctx.strokeText(copy.dumpTitle, 0, -22);
+  ctx.fillText(copy.dumpTitle, 0, -22);
   ctx.font = "800 42px ui-rounded, system-ui, sans-serif";
   ctx.strokeText(`+${dump.bonus}`, 0, 22);
   ctx.fillText(`+${dump.bonus}`, 0, 22);
   ctx.fillStyle = COLORS.title;
   ctx.font = "700 16px ui-rounded, system-ui, sans-serif";
-  ctx.strokeText(`${dump.types} типов · буфер сброшен`, 0, 58);
-  ctx.fillText(`${dump.types} типов · буфер сброшен`, 0, 58);
+  ctx.strokeText(copy.dumpSubtitle(dump.types), 0, 58);
+  ctx.fillText(copy.dumpSubtitle(dump.types), 0, 58);
   ctx.restore();
 }
 

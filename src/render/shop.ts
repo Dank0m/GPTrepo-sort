@@ -1,6 +1,7 @@
 import { ADS, COLORS, UPGRADES, nextUpgradeCost, type UpgradeId } from "../config.ts";
 import { pointInRect } from "../game/hit.ts";
 import type { World } from "../game/world.ts";
+import { strings } from "../i18n/locale.ts";
 
 export function drawShop(ctx: CanvasRenderingContext2D, world: World): void {
   for (const button of world.layout.shopButtons) {
@@ -44,7 +45,7 @@ export function drawShop(ctx: CanvasRenderingContext2D, world: World): void {
     ctx.textBaseline = "middle";
     ctx.fillStyle = COLORS.title;
     ctx.font = `700 ${compact ? 11 : 13}px ui-rounded, system-ui, sans-serif`;
-    ctx.fillText(def.label, cx, button.y + button.height * (compact ? 0.26 : 0.28));
+    ctx.fillText(strings().upgrades[button.id], cx, button.y + button.height * (compact ? 0.26 : 0.28));
 
     ctx.fillStyle = COLORS.muted;
     ctx.font = `${compact ? 10 : 11}px ui-rounded, system-ui, sans-serif`;
@@ -80,7 +81,8 @@ function drawFreeCoins(ctx: CanvasRenderingContext2D, world: World): void {
   ctx.textBaseline = "middle";
   ctx.fillStyle = COLORS.title;
   ctx.font = `700 ${compact ? 11 : 13}px ui-rounded, system-ui, sans-serif`;
-  ctx.fillText(compact ? "Монеты" : "FREE COINS", cx, button.y + button.height * (compact ? 0.26 : 0.28));
+  const t = strings();
+  ctx.fillText(compact ? t.freeCoinsShort : t.freeCoins, cx, button.y + button.height * (compact ? 0.26 : 0.28));
 
   if (wait > 0) {
     ctx.fillStyle = COLORS.muted;
@@ -88,13 +90,13 @@ function drawFreeCoins(ctx: CanvasRenderingContext2D, world: World): void {
     ctx.fillText(formatCooldown(wait), cx, button.y + button.height * 0.5);
     ctx.fillStyle = COLORS.muted;
     ctx.font = `700 ${compact ? 11 : 13}px ui-rounded, system-ui, sans-serif`;
-    ctx.fillText("жди", cx, button.y + button.height * (compact ? 0.76 : 0.74));
+    ctx.fillText(t.wait, cx, button.y + button.height * (compact ? 0.76 : 0.74));
     return;
   }
 
   ctx.fillStyle = COLORS.muted;
   ctx.font = `${compact ? 10 : 11}px ui-rounded, system-ui, sans-serif`;
-  ctx.fillText("реклама", cx, button.y + button.height * 0.5);
+  ctx.fillText(t.ad, cx, button.y + button.height * 0.5);
   ctx.fillStyle = ready ? COLORS.gold : COLORS.muted;
   ctx.font = `700 ${compact ? 11 : 13}px ui-rounded, system-ui, sans-serif`;
   ctx.fillText(`+${ADS.freeCoins}`, cx, button.y + button.height * (compact ? 0.76 : 0.74));
@@ -108,7 +110,11 @@ function formatCooldown(seconds: number): string {
 }
 
 export function shopCursor(world: World, x: number, y: number): boolean {
-  if (pointInRect(x, y, world.layout.mute) || pointInRect(x, y, world.layout.pause)) {
+  if (
+    pointInRect(x, y, world.layout.mute) ||
+    pointInRect(x, y, world.layout.pause) ||
+    pointInRect(x, y, world.layout.lang)
+  ) {
     return true;
   }
   if (world.layout.freeCoins && pointInRect(x, y, world.layout.freeCoins)) {

@@ -18,6 +18,7 @@ import { hitBin, hitItem, pointInRect } from "./hit.ts";
 import { createItem, type Item } from "./item.ts";
 import { dumpOfferUi as makeDumpOfferUi, gameOverUi as makeGameOverUi, hitRect, type DumpOfferUi, type GameOverUi } from "./adLayout.ts";
 import { computeLayout, type PlayfieldLayout } from "./layout.ts";
+import { strings, toggleLocale } from "../i18n/locale.ts";
 import { adService, type AdHost } from "../services/AdService.ts";
 import { yandexService } from "../services/YandexService.ts";
 import {
@@ -254,6 +255,10 @@ export class World implements AdHost {
       }
       return false;
     }
+    if (pointInRect(x, y, this.layout.lang)) {
+      toggleLocale();
+      return false;
+    }
     if (pointInRect(x, y, this.layout.pause) && this.status === "playing" && !this.dumpOffer) {
       this.togglePause();
       return false;
@@ -357,7 +362,7 @@ export class World implements AdHost {
       }
       this.setFeedback(slot.type, "wrong");
       this.fx.burst(held.x, held.y, COLORS.dropBad, 10);
-      this.fx.float(slot.x + slot.width / 2, slot.y + slot.height * 0.35, "Мимо", COLORS.dropBad, 28, 1.1);
+      this.fx.float(slot.x + slot.width / 2, slot.y + slot.height * 0.35, strings().miss, COLORS.dropBad, 28, 1.1);
       this.removeItem(held);
       this.applyMiss();
       return;
@@ -365,7 +370,7 @@ export class World implements AdHost {
 
     if (bin.filled >= bin.capacity) {
       this.setFeedback(slot.type, "full");
-      this.fx.float(slot.x + slot.width / 2, slot.y, "Полно", COLORS.gold);
+      this.fx.float(slot.x + slot.width / 2, slot.y, strings().binFull, COLORS.gold);
       sfx.play("full");
       this.returnToBelt(held);
       return;
@@ -518,7 +523,7 @@ export class World implements AdHost {
     this.adsPlaying = false;
     this.continueFrames = ADS.continueHoldFrames;
     this.rescueBeltAfterContinue();
-    this.fx.float(this.layout.width / 2, this.layout.belt.y - 10, "+1 жизнь", COLORS.heart, 28, 1.2);
+    this.fx.float(this.layout.width / 2, this.layout.belt.y - 10, strings().plusLife, COLORS.heart, 28, 1.2);
     sfx.unlock();
     yandexService.gameplayStart();
   }
@@ -647,7 +652,7 @@ export class World implements AdHost {
       item.x += speed * dt;
       if (item.x >= endX) {
         this.setFeedback(null, "overflow");
-        this.fx.float(belt.x + belt.width - 40, belt.y + belt.height / 2, "Уехал", COLORS.dropBad, 26, 1.1);
+        this.fx.float(belt.x + belt.width - 40, belt.y + belt.height / 2, strings().overflow, COLORS.dropBad, 26, 1.1);
         this.applyMiss();
         continue;
       }
