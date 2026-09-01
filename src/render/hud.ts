@@ -139,6 +139,23 @@ export function drawPause(ctx: CanvasRenderingContext2D, world: World, width: nu
   ctx.restore();
 }
 
+export function drawContinueGrace(ctx: CanvasRenderingContext2D, world: World, width: number, _height: number): void {
+  if (!world.beltFrozen || world.status !== "playing" || world.adsPlaying) {
+    return;
+  }
+  const left = world.continueGraceLeft();
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillStyle = COLORS.gold;
+  ctx.font = "800 18px ui-rounded, system-ui, sans-serif";
+  ctx.fillText(`Передышка  ${Math.ceil(left)}`, width / 2, world.layout.belt.y + world.layout.belt.height + 6);
+  ctx.fillStyle = COLORS.muted;
+  ctx.font = "600 13px ui-rounded, system-ui, sans-serif";
+  ctx.fillText("Лента стоит — разложи фигуры", width / 2, world.layout.belt.y + world.layout.belt.height + 28);
+  ctx.restore();
+}
+
 export function drawDumpOffer(ctx: CanvasRenderingContext2D, world: World, width: number, height: number): void {
   const ui = world.dumpOfferUi(width, height);
   const offer = world.dumpOffer;

@@ -2,7 +2,7 @@ import { COLORS, GAME_TITLE, ITEM_STATE, TYPE_LABEL, type ItemType } from "../co
 import type { CanvasSurface } from "../core/canvas.ts";
 import { drawDebugOverlay } from "../debug/overlay.ts";
 import { beltSpeed } from "../game/upgrades.ts";
-import { drawAdsOverlay, drawDumpOffer, drawGameOver, drawHint, drawHud, drawPause } from "./hud.ts";
+import { drawAdsOverlay, drawContinueGrace, drawDumpOffer, drawGameOver, drawHint, drawHud, drawPause } from "./hud.ts";
 import { drawShop } from "./shop.ts";
 import type { Item } from "../game/item.ts";
 import type { BinLayout, PlayfieldLayout, Rect } from "../game/layout.ts";
@@ -24,7 +24,7 @@ export function drawScene(
 
   drawTable(ctx, layout);
   drawTitle(ctx, layout);
-  drawBelt(ctx, layout.belt, world.elapsed, beltSpeed(world.levels));
+  drawBelt(ctx, layout.belt, world.elapsed, world.beltFrozen ? 0 : beltSpeed(world.levels));
   drawBins(ctx, layout.bins, world);
   drawItems(ctx, world.items);
   drawParticles(ctx, world);
@@ -49,6 +49,7 @@ export function drawScene(
   }
 
   drawPause(ctx, world, w, h);
+  drawContinueGrace(ctx, world, w, h);
   drawGameOver(ctx, world, w, h);
   drawAdsOverlay(ctx, world, w, h);
 

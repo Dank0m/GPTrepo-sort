@@ -82,7 +82,7 @@ export class World implements AdHost {
   dumpOffer: DumpOffer | null = null;
   private spawnTimer = 0;
   private autoTimer = 0;
-  private continueGrace = 0;
+  private continueUntilMs = 0;
 
   constructor(width: number, height: number, records: Records) {
     this.records = records;
@@ -166,6 +166,18 @@ export class World implements AdHost {
     return adService.available;
   }
 
+  /** Seconds left in the Continue breathing room. Belt does not move. */
+  continueGraceLeft(): number {
+    if (this.continueUntilMs <= 0) {
+      return 0;
+    }
+    return Math.max(0, (this.continueUntilMs - performance.now()) / 1000);
+  }
+
+  get beltFrozen(): boolean {
+    return this.continueGraceLeft() > 0;
+  }
+
   freeCoinsReady(): boolean {
     return (
       this.status === "playing" &&
@@ -210,11 +222,9 @@ export class World implements AdHost {
     if (this.paused) {
       return;
     }
-    if (this.status === "playing" && this.continueGrace > 0) {
-      this.continueGrace = Math.max(0, this.continueGrace - dt);
-      if (this.continueGrace === 0) {
-        this.rescueBeltAfterContinue();
-      }
+    if (this.continueUntilMs > 0 && performance.now() >= this.continueUntilMs) {
+      this.continueUntilMs = 0;
+      this.rescueBeltAfterContinue();
     }
     if (this.dumpOffer) {
       this.dumpOffer.remaining -= dt;
@@ -427,7 +437,7 @@ export class World implements AdHost {
     this.paused = false;
     this.adsPlaying = false;
     this.continueUsedThisSession = false;
-    this.continueGrace = 0;
+    this.continueUntilMs = 0;
     this.dumpOffer = null;
     this.beatBestCoins = false;
     this.beatBestCombo = false;
@@ -499,7 +509,7 @@ export class World implements AdHost {
     this.continueUsedThisSession = true;
     this.paused = false;
     this.adsPlaying = false;
-    this.continueGrace = ADS.continueGraceSeconds;
+    this.continueUntilMs = performance.now() + ADS.continueGraceSeconds * 1000;
     this.rescueBeltAfterContinue();
     this.fx.float(this.layout.width / 2, this.layout.belt.y - 10, "+1 жизнь", COLORS.heart, 28, 1.2);
     sfx.unlock();
@@ -623,7 +633,7 @@ export class World implements AdHost {
         continue;
       }
       item.y = centerY;
-      if (this.continueGrace > 0) {
+      if (this.beltFrozen) {
         kept.push(item);
         continue;
       }
@@ -786,7 +796,7 @@ export class World implements AdHost {
   }
 
   private canSpawn(): boolean {
-    if (this.status !== "playing" || this.continueGrace > 0) {
+    if (this.status !== "playing" || this.beltFrozen) {
       return false;
     }
     if (this.spawnTimer < spawnInterval(this.levels)) {
