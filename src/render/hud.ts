@@ -221,12 +221,18 @@ function drawLang(
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  const pad = 5;
+  const pad = 4;
   const gap = 4;
-  const flagW = (rect.width - pad * 2 - gap) / 2;
-  const flagH = flagW * (2 / 3);
+  const maxH = rect.height - pad * 2;
+  const maxW = (rect.width - pad * 2 - gap) / 2;
+  let flagH = maxH;
+  let flagW = flagH * 1.5;
+  if (flagW > maxW) {
+    flagW = maxW;
+    flagH = flagW * (2 / 3);
+  }
   const flagY = rect.y + (rect.height - flagH) / 2;
-  const ruX = rect.x + pad;
+  const ruX = rect.x + (rect.width - flagW * 2 - gap) / 2;
   const enX = ruX + flagW + gap;
   const active = currentLocale();
 
