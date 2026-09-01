@@ -212,6 +212,9 @@ export class World implements AdHost {
     }
     if (this.status === "playing" && this.continueGrace > 0) {
       this.continueGrace = Math.max(0, this.continueGrace - dt);
+      if (this.continueGrace === 0) {
+        this.rescueBeltAfterContinue();
+      }
     }
     if (this.dumpOffer) {
       this.dumpOffer.remaining -= dt;
@@ -503,27 +506,25 @@ export class World implements AdHost {
     yandexService.gameplayStart();
   }
 
-  /** Pull packed items back from the exit so Continue is not spent on the next frame. */
+  /** Pack items from the spawn side and leave the exit empty. */
   private rescueBeltAfterContinue(): void {
     const belt = this.layout.belt;
     const half = this.layout.itemSize * 0.5;
     const gap = minGap(this.levels);
-    const safeEnd = belt.x + belt.width - half - 36;
     const spawnX = belt.x + half;
+    const safeEnd = belt.x + belt.width * 0.52;
     const onBelt = this.items
       .filter((item) => item.state === ITEM_STATE.OnBelt)
-      .sort((a, b) => b.x - a.x);
-    if (onBelt.length === 0) {
-      return;
-    }
-    let cursor = safeEnd;
+      .sort((a, b) => a.x - b.x);
+    let cursor = spawnX;
     for (const item of onBelt) {
-      item.x = Math.min(item.x, cursor);
-      if (item.x < spawnX) {
+      if (cursor <= safeEnd) {
+        item.x = cursor;
+        cursor += gap;
+      } else {
         item.x = spawnX;
       }
       item.y = belt.y + belt.height / 2;
-      cursor = item.x - gap;
     }
   }
 
@@ -621,14 +622,13 @@ export class World implements AdHost {
         kept.push(item);
         continue;
       }
-      item.x += speed * dt;
       item.y = centerY;
+      if (this.continueGrace > 0) {
+        kept.push(item);
+        continue;
+      }
+      item.x += speed * dt;
       if (item.x >= endX) {
-        if (this.continueGrace > 0) {
-          item.x = belt.x + belt.width - this.layout.itemSize * 0.45;
-          kept.push(item);
-          continue;
-        }
         this.setFeedback(null, "overflow");
         this.fx.float(belt.x + belt.width - 40, belt.y + belt.height / 2, "Уехал", COLORS.dropBad, 26, 1.1);
         this.applyMiss();

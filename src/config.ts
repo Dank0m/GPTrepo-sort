@@ -6,8 +6,8 @@ export const ADS = {
   freeCoinsCooldown: 90,
   dumpOfferSeconds: 5,
   mockDelayMs: 650,
-  /** After Continue, overflow does not spend the extra life. */
-  continueGraceSeconds: 2.2,
+  /** After Continue, belt is frozen so overflow cannot spend the extra life. */
+  continueGraceSeconds: 4,
 } as const;
 
 export const GAME_TITLE = "Sort & Upgrade";
