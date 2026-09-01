@@ -82,7 +82,7 @@ export class World implements AdHost {
   dumpOffer: DumpOffer | null = null;
   private spawnTimer = 0;
   private autoTimer = 0;
-  private continueHold = 0;
+  private continueFrames = 0;
 
   constructor(width: number, height: number, records: Records) {
     this.records = records;
@@ -168,7 +168,7 @@ export class World implements AdHost {
 
   /** Seconds left in the Continue breathing room. Belt does not move. */
   continueGraceLeft(): number {
-    return Math.max(0, this.continueHold);
+    return this.continueFrames / 60;
   }
 
   get beltFrozen(): boolean {
@@ -218,12 +218,10 @@ export class World implements AdHost {
     if (this.paused) {
       return;
     }
-    if (this.continueHold > 0) {
-      this.continueHold = Math.max(0, this.continueHold - dt);
+    if (this.continueFrames > 0) {
+      this.continueFrames -= 1;
       this.rescueBeltAfterContinue();
-      if (this.continueHold > 0) {
-        return;
-      }
+      return;
     }
     this.updateFlights(dt);
     if (this.dumpOffer) {
@@ -441,7 +439,7 @@ export class World implements AdHost {
     this.paused = false;
     this.adsPlaying = false;
     this.continueUsedThisSession = false;
-    this.continueHold = 0;
+    this.continueFrames = 0;
     this.dumpOffer = null;
     this.beatBestCoins = false;
     this.beatBestCombo = false;
@@ -518,7 +516,7 @@ export class World implements AdHost {
     this.continueUsedThisSession = true;
     this.paused = false;
     this.adsPlaying = false;
-    this.continueHold = ADS.continueGraceSeconds;
+    this.continueFrames = ADS.continueHoldFrames;
     this.rescueBeltAfterContinue();
     this.fx.float(this.layout.width / 2, this.layout.belt.y - 10, "+1 жизнь", COLORS.heart, 28, 1.2);
     sfx.unlock();
