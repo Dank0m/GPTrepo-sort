@@ -1,5 +1,6 @@
 import {
   BIN_CAPACITY,
+  COLORS,
   ECONOMY,
   INPUT,
   ITEM_STATE,
@@ -7,7 +8,9 @@ import {
   type ItemType,
   type UpgradeId,
 } from "../config.ts";
+import { sfx } from "../audio/sfx.ts";
 import { createBin, type Bin } from "./bin.ts";
+import { Fx } from "./fx.ts";
 import { hitBin, hitItem, pointInRect } from "./hit.ts";
 import { createItem, type Item } from "./item.ts";
 import { computeLayout, type PlayfieldLayout } from "./layout.ts";
@@ -31,6 +34,12 @@ export type DropFeedback = {
   until: number;
 };
 
+export type ShopPulse = {
+  id: UpgradeId;
+  kind: "buy" | "reject";
+  until: number;
+};
+
 export class World {
   items: Item[] = [];
   bins: Bin[] = [];
@@ -43,10 +52,15 @@ export class World {
   lastDrop: DropKind | "none" = "none";
   coins = 0;
   combo = 0;
+  maxCombo = 0;
   lives: number = ECONOMY.startLives;
   status: SessionStatus = "playing";
   lastGain = 0;
   levels: UpgradeLevels = emptyLevels();
+  fx = new Fx();
+  debug = false;
+  shopPulse: ShopPulse | null = null;
+  sortedCount = 0;
   private spawnTimer = 0;
   private autoTimer = 0;
 
@@ -66,8 +80,12 @@ export class World {
 
   update(dt: number): void {
     this.elapsed += dt;
+    this.fx.update(dt);
     if (this.feedback && this.elapsed >= this.feedback.until) {
       this.feedback = null;
+    }
+    if (this.shopPulse && this.elapsed >= this.shopPulse.until) {
+      this.shopPulse = null;
     }
     if (this.status !== "playing") {
       return;
@@ -82,6 +100,11 @@ export class World {
   }
 
   pointerDown(x: number, y: number): boolean {
+    sfx.unlock();
+    if (pointInRect(x, y, this.layout.mute)) {
+      sfx.toggle();
+      return false;
+    }
     if (this.status === "over") {
       this.restart();
       return false;
@@ -100,10 +123,9 @@ export class World {
       return false;
     }
     hit.state = ITEM_STATE.InHand;
-    hit.x = x;
-    hit.y = y;
+    this.placeGrabbed(hit, x, y);
     this.grabbed = hit;
-    this.hoverBinType = hitBin(this.layout.bins, x, y)?.type ?? null;
+    this.hoverBinType = hitBin(this.layout.bins, hit.x, hit.y)?.type ?? null;
     return true;
   }
 
@@ -112,9 +134,8 @@ export class World {
     if (!this.grabbed || this.status !== "playing") {
       return;
     }
-    this.grabbed.x = x;
-    this.grabbed.y = y;
-    this.hoverBinType = hitBin(this.layout.bins, x, y)?.type ?? null;
+    this.placeGrabbed(this.grabbed, x, y);
+    this.hoverBinType = hitBin(this.layout.bins, this.grabbed.x, this.grabbed.y)?.type ?? null;
   }
 
   pointerUp(x: number, y: number): void {
@@ -122,6 +143,7 @@ export class World {
     if (!held) {
       return;
     }
+    this.placeGrabbed(held, x, y);
     this.grabbed = null;
     this.hoverBinType = null;
     if (this.status !== "playing") {
@@ -129,7 +151,7 @@ export class World {
       return;
     }
 
-    const slot = hitBin(this.layout.bins, x, y);
+    const slot = hitBin(this.layout.bins, held.x, held.y);
     if (!slot) {
       this.returnToBelt(held);
       return;
@@ -143,6 +165,8 @@ export class World {
 
     if (held.type !== slot.type) {
       this.setFeedback(slot.type, "wrong");
+      this.fx.burst(held.x, held.y, COLORS.dropBad, 10);
+      this.fx.float(slot.x + slot.width / 2, slot.y, "Мимо", COLORS.dropBad);
       this.removeItem(held);
       this.applyMiss();
       return;
@@ -150,6 +174,8 @@ export class World {
 
     if (bin.filled >= bin.capacity) {
       this.setFeedback(slot.type, "full");
+      this.fx.float(slot.x + slot.width / 2, slot.y, "Полно", COLORS.gold);
+      sfx.play("full");
       this.returnToBelt(held);
       return;
     }
@@ -169,18 +195,27 @@ export class World {
   tryBuy(id: UpgradeId): boolean {
     const cost = nextUpgradeCost(id, this.levels[id]);
     if (cost === null || this.coins < cost) {
+      this.shopPulse = { id, kind: "reject", until: this.elapsed + 0.35 };
+      sfx.play("reject");
       return false;
     }
     this.coins -= cost;
     this.levels[id] += 1;
+    this.shopPulse = { id, kind: "buy", until: this.elapsed + 0.35 };
     this.syncBins();
     this.layout = computeLayout(this.layout.width, this.layout.height, activeTypes(this.levels));
     this.snapBeltItems();
+    sfx.play("buy");
     return true;
   }
 
   hitUpgrade(x: number, y: number): UpgradeId | undefined {
     return this.layout.shopButtons.find((button) => pointInRect(x, y, button))?.id;
+  }
+
+  private placeGrabbed(item: Item, x: number, y: number): void {
+    item.x = x;
+    item.y = y - INPUT.dragLift;
   }
 
   private resetSession(): void {
@@ -196,12 +231,16 @@ export class World {
     this.lastDrop = "none";
     this.coins = 0;
     this.combo = 0;
+    this.maxCombo = 0;
     this.lives = ECONOMY.startLives;
     this.status = "playing";
     this.lastGain = 0;
     this.elapsed = 0;
     this.spawnTimer = 0;
     this.autoTimer = 0;
+    this.shopPulse = null;
+    this.sortedCount = 0;
+    this.fx.clear();
   }
 
   private syncBins(): void {
@@ -214,15 +253,25 @@ export class World {
   }
 
   private acceptItem(item: Item, bin: Bin): void {
+    const slot = this.layout.bins.find((entry) => entry.type === bin.type);
     bin.filled += 1;
     item.state = ITEM_STATE.InBin;
     this.removeItem(item);
     this.applyCorrect();
     this.setFeedback(bin.type, "correct");
+    this.sortedCount += 1;
+    const cx = slot ? slot.x + slot.width / 2 : item.x;
+    const cy = slot ? slot.y + slot.height * 0.35 : item.y;
+    this.fx.burst(cx, cy, COLORS.item[bin.type]);
+    this.fx.float(cx, cy - 8, `+${this.lastGain}`, COLORS.gold);
+    sfx.play("ok", this.combo);
   }
 
   private applyCorrect(): void {
     this.combo += 1;
+    if (this.combo > this.maxCombo) {
+      this.maxCombo = this.combo;
+    }
     this.lastGain = coinValue(this.levels) * this.combo;
     this.coins += this.lastGain;
   }
@@ -231,10 +280,14 @@ export class World {
     this.combo = 0;
     this.lastGain = 0;
     this.lives -= 1;
+    this.fx.miss();
     if (this.lives <= 0) {
       this.lives = 0;
       this.status = "over";
       this.grabbed = null;
+      sfx.play("over");
+    } else {
+      sfx.play("bad");
     }
   }
 
@@ -294,6 +347,7 @@ export class World {
       item.y = centerY;
       if (item.x >= endX) {
         this.setFeedback(null, "overflow");
+        this.fx.float(belt.x + belt.width - 24, belt.y, "Уехал", COLORS.dropBad);
         this.applyMiss();
         continue;
       }

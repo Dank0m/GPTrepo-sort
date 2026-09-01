@@ -1,5 +1,5 @@
-/** Current development phase. PHASE 4: upgrade shop. */
-export const PHASE = 4;
+/** Current development phase. PHASE 5: UI polish, feedback, sound. */
+export const PHASE = 5;
 
 export const GAME_TITLE = "Sort & Upgrade";
 
@@ -7,6 +7,13 @@ export const ITEM_TYPES = ["red", "blue", "yellow", "green"] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];
 export const BASE_TYPES: ItemType[] = ["red", "blue", "yellow"];
 export const EXTRA_TYPE: ItemType = "green";
+
+export const TYPE_LABEL: Record<ItemType, string> = {
+  red: "Квадрат",
+  blue: "Круг",
+  yellow: "Треуг.",
+  green: "Ромб",
+};
 
 export const ITEM_STATE = {
   OnBelt: "onBelt",
@@ -26,8 +33,10 @@ export const BELT = {
 
 export const INPUT = {
   /** Extra hit padding around an item, CSS pixels. */
-  grabPadding: 8,
-  feedbackSeconds: 0.35,
+  grabPadding: 14,
+  /** Lift the grabbed item above the pointer so a finger does not cover it. */
+  dragLift: 34,
+  feedbackSeconds: 0.4,
 } as const;
 
 export const ECONOMY = {

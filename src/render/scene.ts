@@ -1,68 +1,78 @@
-import { COLORS, GAME_TITLE, ITEM_STATE, PHASE, type ItemType } from "../config.ts";
+import { COLORS, GAME_TITLE, ITEM_STATE, TYPE_LABEL, type ItemType } from "../config.ts";
 import type { CanvasSurface } from "../core/canvas.ts";
 import { drawDebugOverlay } from "../debug/overlay.ts";
-import { drawGameOver, drawHud } from "./hud.ts";
+import { beltSpeed } from "../game/upgrades.ts";
+import { drawGameOver, drawHint, drawHud } from "./hud.ts";
 import { drawShop } from "./shop.ts";
 import type { Item } from "../game/item.ts";
 import type { BinLayout, PlayfieldLayout, Rect } from "../game/layout.ts";
 import type { World } from "../game/world.ts";
-
-const TYPE_LABEL: Record<ItemType, string> = {
-  red: "Red",
-  blue: "Blue",
-  yellow: "Yellow",
-  green: "Green",
-};
 
 export function drawScene(
   surface: CanvasSurface,
   world: World,
   fps: number,
 ): void {
-  const { ctx, cssWidth: w } = surface;
+  const { ctx, cssWidth: w, cssHeight: h } = surface;
   const layout = world.layout;
 
   ctx.fillStyle = COLORS.background;
-  ctx.fillRect(0, 0, w, surface.cssHeight);
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.save();
+  ctx.translate(world.fx.offsetX, world.fx.offsetY);
 
   drawTable(ctx, layout);
-  drawTitle(ctx, w);
-  drawBelt(ctx, layout.belt, world.elapsed);
+  drawTitle(ctx, layout);
+  drawBelt(ctx, layout.belt, world.elapsed, beltSpeed(world.levels));
   drawBins(ctx, layout.bins, world);
   drawItems(ctx, world.items);
+  drawFx(ctx, world);
+  ctx.restore();
+
   drawShop(ctx, world);
-  drawHud(ctx, world, w);
-  drawDebugOverlay(
-    ctx,
-    surface,
-    fps,
-    world.items.length,
-    world.lastDrop,
-    world.coins,
-    world.combo,
-    world.lives,
-  );
-  drawGameOver(ctx, world, w, surface.cssHeight);
+  drawHud(ctx, world);
+  drawHint(ctx, world);
+
+  if (world.fx.flash > 0) {
+    ctx.fillStyle = `rgba(232, 93, 76, ${world.fx.flash * 0.28})`;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  if (world.debug) {
+    drawDebugOverlay(
+      ctx,
+      surface,
+      fps,
+      world.items.length,
+      world.lastDrop,
+      world.coins,
+      world.combo,
+      world.lives,
+    );
+  }
+  drawGameOver(ctx, world, w, h);
 }
 
 function drawTable(ctx: CanvasRenderingContext2D, layout: PlayfieldLayout): void {
   ctx.fillStyle = COLORS.table;
-  ctx.fillRect(0, layout.belt.y - 28, layout.width, layout.height);
+  ctx.fillRect(0, layout.belt.y - 24, layout.width, layout.height);
 }
 
-function drawTitle(ctx: CanvasRenderingContext2D, width: number): void {
-  ctx.textAlign = "center";
+function drawTitle(ctx: CanvasRenderingContext2D, layout: PlayfieldLayout): void {
+  ctx.textAlign = "left";
   ctx.textBaseline = "top";
-  ctx.fillStyle = COLORS.title;
-  ctx.font = "600 22px system-ui, sans-serif";
-  ctx.fillText(GAME_TITLE, width / 2, 16);
-
   ctx.fillStyle = COLORS.muted;
-  ctx.font = "13px system-ui, sans-serif";
-  ctx.fillText(`PHASE ${PHASE} — трать монеты на апгрейды`, width / 2, 42);
+  ctx.font = "600 12px ui-rounded, system-ui, sans-serif";
+  ctx.fillText(GAME_TITLE, layout.hud.x + 4, layout.hud.y + layout.hud.height + 4);
 }
 
-function drawBelt(ctx: CanvasRenderingContext2D, belt: Rect, elapsed: number): void {
+function drawBelt(
+  ctx: CanvasRenderingContext2D,
+  belt: Rect,
+  elapsed: number,
+  speed: number,
+): void {
   roundRect(ctx, belt.x, belt.y, belt.width, belt.height, 14);
   ctx.fillStyle = COLORS.belt;
   ctx.fill();
@@ -75,7 +85,7 @@ function drawBelt(ctx: CanvasRenderingContext2D, belt: Rect, elapsed: number): v
   ctx.clip();
 
   const stripeW = 28;
-  const shift = (elapsed * 140) % (stripeW * 2);
+  const shift = (elapsed * speed) % (stripeW * 2);
   ctx.fillStyle = COLORS.beltStripe;
   ctx.globalAlpha = 0.45;
   for (let x = belt.x - stripeW * 2 + shift; x < belt.x + belt.width + stripeW; x += stripeW * 2) {
@@ -104,15 +114,16 @@ function drawBins(
     const held = world.grabbed;
     const matchHover = hovering && held !== null && held.type === slot.type;
     const feedback = world.feedback?.binType === slot.type ? world.feedback : null;
+    const full = filled >= capacity;
 
-    roundRect(ctx, slot.x, slot.y, slot.width, slot.height, 12);
+    roundRect(ctx, slot.x, slot.y, slot.width, slot.height, 14);
     ctx.fillStyle = COLORS.panel;
     ctx.fill();
 
     const fillRatio = capacity > 0 ? Math.min(1, filled / capacity) : 0;
     if (fillRatio > 0) {
       ctx.save();
-      roundRect(ctx, slot.x, slot.y, slot.width, slot.height, 12);
+      roundRect(ctx, slot.x, slot.y, slot.width, slot.height, 14);
       ctx.clip();
       const fillH = slot.height * fillRatio;
       ctx.fillStyle = color;
@@ -143,18 +154,18 @@ function drawBins(
     ctx.stroke();
 
     const iconX = slot.x + slot.width / 2;
-    const iconY = slot.y + slot.height * 0.42;
-    drawTypeShape(ctx, slot.type, iconX, iconY, Math.min(40, slot.width * 0.3));
+    const iconY = slot.y + slot.height * 0.38;
+    drawTypeShape(ctx, slot.type, iconX, iconY, Math.min(38, slot.width * 0.28));
 
     ctx.fillStyle = COLORS.title;
-    ctx.font = "600 14px system-ui, sans-serif";
+    ctx.font = `700 ${slot.width < 90 ? 11 : 14}px ui-rounded, system-ui, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
     ctx.fillText(TYPE_LABEL[slot.type], iconX, slot.y + slot.height - 22);
 
-    ctx.fillStyle = COLORS.muted;
-    ctx.font = "12px system-ui, sans-serif";
-    ctx.fillText(`${filled} / ${capacity}`, iconX, slot.y + slot.height - 8);
+    ctx.fillStyle = full ? COLORS.gold : COLORS.muted;
+    ctx.font = "12px ui-rounded, system-ui, sans-serif";
+    ctx.fillText(full ? "ПОЛНО" : `${filled} / ${capacity}`, iconX, slot.y + slot.height - 8);
   }
 }
 
@@ -168,8 +179,36 @@ function drawItems(ctx: CanvasRenderingContext2D, items: Item[]): void {
     drawTypeShape(ctx, item.type, item.x, item.y, item.size * 0.5);
   }
   for (const item of held) {
-    drawTypeShape(ctx, item.type, item.x, item.y, item.size * 0.58);
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,0.45)";
+    ctx.shadowBlur = 18;
+    ctx.shadowOffsetY = 8;
+    drawTypeShape(ctx, item.type, item.x, item.y, item.size * 0.6);
+    ctx.restore();
   }
+}
+
+function drawFx(ctx: CanvasRenderingContext2D, world: World): void {
+  for (const p of world.fx.particles) {
+    const alpha = Math.max(0, p.life / p.maxLife);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  for (const f of world.fx.floaters) {
+    const t = f.life / f.maxLife;
+    ctx.globalAlpha = t;
+    ctx.fillStyle = f.color;
+    ctx.font = "800 18px ui-rounded, system-ui, sans-serif";
+    ctx.fillText(f.text, f.x, f.y);
+  }
+  ctx.globalAlpha = 1;
 }
 
 function drawTypeShape(

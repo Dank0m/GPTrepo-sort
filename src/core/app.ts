@@ -19,6 +19,7 @@ export class App {
     });
     this.bindResize();
     this.bindPointer();
+    this.bindKeys();
   }
 
   start(): void {
@@ -70,6 +71,14 @@ export class App {
     canvas.addEventListener("pointercancel", () => {
       this.world.pointerCancel();
       canvas.style.cursor = "grab";
+    });
+  }
+
+  private bindKeys(): void {
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "d" || event.key === "D") {
+        this.world.debug = !this.world.debug;
+      }
     });
   }
 

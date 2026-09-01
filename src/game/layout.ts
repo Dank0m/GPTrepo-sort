@@ -19,11 +19,14 @@ export type ShopButtonLayout = Rect & {
 export type PlayfieldLayout = {
   width: number;
   height: number;
+  hud: Rect;
+  mute: Rect;
   belt: Rect;
   bins: BinLayout[];
   shop: Rect;
   shopButtons: ShopButtonLayout[];
   itemSize: number;
+  narrow: boolean;
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -35,8 +38,27 @@ export function computeLayout(
   height: number,
   types: readonly ItemType[],
 ): PlayfieldLayout {
-  const pad = clamp(Math.min(width, height) * 0.045, 16, 36);
-  const shopHeight = clamp(height * 0.14, 64, 88);
+  const pad = clamp(Math.min(width, height) * 0.04, 10, 28);
+  const narrow = width < 560;
+  const headerH = clamp(height * 0.1, 56, 80);
+
+  const hud: Rect = {
+    x: pad,
+    y: pad * 0.45,
+    width: Math.max(80, width - pad * 2),
+    height: headerH,
+  };
+  const muteSize = 36;
+  const mute: Rect = {
+    x: hud.x + hud.width - muteSize,
+    y: hud.y + 8,
+    width: muteSize,
+    height: muteSize,
+  };
+
+  const shopRows = narrow ? 2 : 1;
+  const shopHeight =
+    shopRows === 2 ? clamp(height * 0.2, 108, 148) : clamp(height * 0.135, 72, 96);
   const shop: Rect = {
     x: pad,
     y: height - pad - shopHeight,
@@ -44,23 +66,23 @@ export function computeLayout(
     height: shopHeight,
   };
 
-  const beltHeight = clamp(height * 0.16, 64, 110);
-  const beltY = height * 0.3;
+  const playTop = hud.y + hud.height + pad * 0.35;
+  const playBottom = shop.y - pad * 0.7;
+  const playH = Math.max(120, playBottom - playTop);
+
+  const beltHeight = clamp(playH * 0.3, 56, 108);
   const belt: Rect = {
     x: pad,
-    y: beltY,
+    y: playTop + playH * 0.06,
     width: Math.max(80, width - pad * 2),
     height: beltHeight,
   };
 
   const binCount = Math.max(1, types.length);
-  const binTop = belt.y + belt.height + pad * 1.1;
-  const binHeight = clamp(shop.y - binTop - pad * 0.6, 80, 150);
-  const gap = 12;
-  const binWidth = Math.min(
-    180,
-    (belt.width - gap * (binCount - 1)) / binCount,
-  );
+  const binTop = belt.y + belt.height + pad * 0.9;
+  const binHeight = clamp(shop.y - binTop - pad * 0.5, 72, 150);
+  const gap = narrow ? 8 : 12;
+  const binWidth = Math.min(180, (belt.width - gap * (binCount - 1)) / binCount);
   const rowWidth = binCount * binWidth + (binCount - 1) * gap;
   const rowX = belt.x + (belt.width - rowWidth) / 2;
 
@@ -73,23 +95,58 @@ export function computeLayout(
     capacity: BIN_CAPACITY,
   }));
 
-  const buttonGap = 8;
-  const buttonW = (shop.width - buttonGap * (UPGRADE_IDS.length - 1)) / UPGRADE_IDS.length;
-  const shopButtons: ShopButtonLayout[] = UPGRADE_IDS.map((id, index) => ({
-    id,
-    x: shop.x + index * (buttonW + buttonGap),
-    y: shop.y,
-    width: buttonW,
-    height: shop.height,
-  }));
+  const shopButtons = layoutShopButtons(shop, shopRows);
 
   return {
     width,
     height,
+    hud,
+    mute,
     belt,
     bins,
     shop,
     shopButtons,
-    itemSize: clamp(beltHeight * 0.58, 36, 64),
+    itemSize: clamp(beltHeight * 0.58, 34, 64),
+    narrow,
   };
+}
+
+function layoutShopButtons(shop: Rect, rows: number): ShopButtonLayout[] {
+  const gap = 8;
+  if (rows === 1) {
+    const buttonW = (shop.width - gap * (UPGRADE_IDS.length - 1)) / UPGRADE_IDS.length;
+    return UPGRADE_IDS.map((id, index) => ({
+      id,
+      x: shop.x + index * (buttonW + gap),
+      y: shop.y,
+      width: buttonW,
+      height: shop.height,
+    }));
+  }
+
+  const rowH = (shop.height - gap) / 2;
+  const top = UPGRADE_IDS.slice(0, 3);
+  const bottom = UPGRADE_IDS.slice(3);
+  return [
+    ...rowOf(top, shop.x, shop.y, shop.width, rowH, gap),
+    ...rowOf(bottom, shop.x, shop.y + rowH + gap, shop.width, rowH, gap),
+  ];
+}
+
+function rowOf(
+  ids: readonly UpgradeId[],
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  gap: number,
+): ShopButtonLayout[] {
+  const buttonW = (width - gap * (ids.length - 1)) / ids.length;
+  return ids.map((id, index) => ({
+    id,
+    x: x + index * (buttonW + gap),
+    y,
+    width: buttonW,
+    height,
+  }));
 }
