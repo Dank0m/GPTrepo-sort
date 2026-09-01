@@ -15,5 +15,6 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 47321,
     strictPort: true,
+    allowedHosts: true,
   },
 });
