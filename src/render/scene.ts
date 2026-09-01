@@ -139,15 +139,9 @@ function drawBins(
     ctx.lineWidth = hovering || feedback ? 5 : 3;
     ctx.stroke();
 
-    const mouthH = 18;
-    ctx.fillStyle = color;
-    ctx.globalAlpha = 0.35;
-    ctx.fillRect(slot.x + 8, slot.y, slot.width - 16, mouthH);
-    ctx.globalAlpha = 1;
-
     const iconX = slot.x + slot.width / 2;
     const iconY = slot.y + slot.height * 0.42;
-    drawTypeShape(ctx, slot.type, iconX, iconY, Math.min(40, slot.width * 0.3), fillRatio);
+    drawTypeShape(ctx, slot.type, iconX, iconY, Math.min(40, slot.width * 0.3));
 
     ctx.fillStyle = COLORS.title;
     ctx.font = "600 14px system-ui, sans-serif";
@@ -181,27 +175,13 @@ function drawTypeShape(
   x: number,
   y: number,
   radius: number,
-  fillRatio = 1,
 ): void {
   ctx.save();
+  ctx.fillStyle = COLORS.item[type];
   ctx.strokeStyle = COLORS.itemDark[type];
   ctx.lineWidth = 2;
   pathTypeShape(ctx, type, x, y, radius);
-  ctx.stroke();
-
-  const ratio = Math.max(0, Math.min(1, fillRatio));
-  if (ratio > 0) {
-    ctx.save();
-    pathTypeShape(ctx, type, x, y, radius);
-    ctx.clip();
-    const top = y - radius;
-    const height = radius * 2;
-    ctx.fillStyle = COLORS.item[type];
-    ctx.fillRect(x - radius - 2, top + height * (1 - ratio), radius * 2 + 4, height * ratio + 2);
-    ctx.restore();
-  }
-
-  pathTypeShape(ctx, type, x, y, radius);
+  ctx.fill();
   ctx.stroke();
   ctx.restore();
 }
