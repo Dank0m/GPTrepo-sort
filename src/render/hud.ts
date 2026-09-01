@@ -222,27 +222,41 @@ function drawLang(
   ctx.stroke();
 
   const pad = 5;
-  const innerX = rect.x + pad;
-  const innerY = rect.y + pad;
-  const innerW = rect.width - pad * 2;
-  const innerH = rect.height - pad * 2;
-  const half = innerW / 2;
+  const gap = 4;
+  const flagW = (rect.width - pad * 2 - gap) / 2;
+  const flagH = flagW * (2 / 3);
+  const flagY = rect.y + (rect.height - flagH) / 2;
+  const ruX = rect.x + pad;
+  const enX = ruX + flagW + gap;
   const active = currentLocale();
 
+  drawFlagBadge(ctx, ruX, flagY, flagW, flagH, "ru", active === "ru");
+  drawFlagBadge(ctx, enX, flagY, flagW, flagH, "en", active === "en");
+}
+
+function drawFlagBadge(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  locale: "ru" | "en",
+  active: boolean,
+): void {
   ctx.save();
-  roundRect(ctx, innerX, innerY, innerW, innerH, 4);
+  roundRect(ctx, x, y, w, h, 3);
   ctx.clip();
-  drawRuFlag(ctx, innerX, innerY, half, innerH);
-  drawEnFlag(ctx, innerX + half, innerY, half, innerH);
+  if (locale === "ru") {
+    drawRuFlag(ctx, x, y, w, h);
+  } else {
+    drawEnFlag(ctx, x, y, w, h);
+  }
   ctx.restore();
 
-  const activeX = active === "ru" ? innerX : innerX + half;
-  ctx.save();
-  roundRect(ctx, activeX, innerY, half, innerH, 3);
-  ctx.strokeStyle = COLORS.gold;
-  ctx.lineWidth = 2;
+  roundRect(ctx, x, y, w, h, 3);
+  ctx.strokeStyle = active ? COLORS.gold : "rgba(255,255,255,0.18)";
+  ctx.lineWidth = active ? 2 : 1;
   ctx.stroke();
-  ctx.restore();
 }
 
 function drawRuFlag(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
@@ -258,8 +272,9 @@ function drawRuFlag(ctx: CanvasRenderingContext2D, x: number, y: number, w: numb
 function drawEnFlag(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
   ctx.fillStyle = "#012169";
   ctx.fillRect(x, y, w, h);
+  const short = Math.min(w, h);
   ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = Math.max(2.4, Math.min(w, h) * 0.22);
+  ctx.lineWidth = Math.max(1.6, short * 0.16);
   ctx.beginPath();
   ctx.moveTo(x, y);
   ctx.lineTo(x + w, y + h);
@@ -267,7 +282,7 @@ function drawEnFlag(ctx: CanvasRenderingContext2D, x: number, y: number, w: numb
   ctx.lineTo(x, y + h);
   ctx.stroke();
   ctx.strokeStyle = "#c8102e";
-  ctx.lineWidth = Math.max(1.2, Math.min(w, h) * 0.1);
+  ctx.lineWidth = Math.max(0.8, short * 0.07);
   ctx.beginPath();
   ctx.moveTo(x, y);
   ctx.lineTo(x + w, y + h);
@@ -275,7 +290,7 @@ function drawEnFlag(ctx: CanvasRenderingContext2D, x: number, y: number, w: numb
   ctx.lineTo(x, y + h);
   ctx.stroke();
   ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = Math.max(3.2, Math.min(w, h) * 0.32);
+  ctx.lineWidth = Math.max(2.2, short * 0.22);
   ctx.beginPath();
   ctx.moveTo(x + w / 2, y);
   ctx.lineTo(x + w / 2, y + h);
@@ -283,7 +298,7 @@ function drawEnFlag(ctx: CanvasRenderingContext2D, x: number, y: number, w: numb
   ctx.lineTo(x + w, y + h / 2);
   ctx.stroke();
   ctx.strokeStyle = "#c8102e";
-  ctx.lineWidth = Math.max(1.6, Math.min(w, h) * 0.16);
+  ctx.lineWidth = Math.max(1.1, short * 0.11);
   ctx.beginPath();
   ctx.moveTo(x + w / 2, y);
   ctx.lineTo(x + w / 2, y + h);

@@ -65,10 +65,11 @@ export function computeLayout(
     width: muteSize,
     height: muteSize,
   };
+  const langW = 64;
   const lang: Rect = {
-    x: pause.x - 8 - muteSize,
+    x: pause.x - 8 - langW,
     y: mute.y,
-    width: muteSize,
+    width: langW,
     height: muteSize,
   };
 
