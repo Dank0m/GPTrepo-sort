@@ -47,7 +47,7 @@ export function drawGameOver(ctx: CanvasRenderingContext2D, world: World, width:
   ctx.textBaseline = "middle";
   ctx.fillStyle = COLORS.title;
   ctx.font = "600 28px system-ui, sans-serif";
-  ctx.fillText("Сессия окончена", width / 2, height / 2 - 28);
+  ctx.fillText("GAME OVER", width / 2, height / 2 - 28);
   ctx.fillStyle = COLORS.gold;
   ctx.font = "18px system-ui, sans-serif";
   ctx.fillText(`Монеты: ${world.coins}`, width / 2, height / 2 + 6);

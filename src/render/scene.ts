@@ -106,6 +106,18 @@ function drawBins(
     ctx.fillStyle = COLORS.panel;
     ctx.fill();
 
+    const fillRatio = capacity > 0 ? Math.min(1, filled / capacity) : 0;
+    if (fillRatio > 0) {
+      ctx.save();
+      roundRect(ctx, slot.x, slot.y, slot.width, slot.height, 12);
+      ctx.clip();
+      const fillH = slot.height * fillRatio;
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.45;
+      ctx.fillRect(slot.x, slot.y + slot.height - fillH, slot.width, fillH);
+      ctx.restore();
+    }
+
     if (feedback) {
       ctx.fillStyle = feedback.kind === "correct" ? COLORS.dropOk : COLORS.dropBad;
       ctx.globalAlpha = 0.28;
@@ -134,8 +146,8 @@ function drawBins(
     ctx.globalAlpha = 1;
 
     const iconX = slot.x + slot.width / 2;
-    const iconY = slot.y + slot.height * 0.46;
-    drawTypeShape(ctx, slot.type, iconX, iconY, Math.min(36, slot.width * 0.28));
+    const iconY = slot.y + slot.height * 0.42;
+    drawTypeShape(ctx, slot.type, iconX, iconY, Math.min(40, slot.width * 0.3), fillRatio);
 
     ctx.fillStyle = COLORS.title;
     ctx.font = "600 14px system-ui, sans-serif";
@@ -169,31 +181,50 @@ function drawTypeShape(
   x: number,
   y: number,
   radius: number,
+  fillRatio = 1,
 ): void {
   ctx.save();
-  ctx.fillStyle = COLORS.item[type];
   ctx.strokeStyle = COLORS.itemDark[type];
   ctx.lineWidth = 2;
+  pathTypeShape(ctx, type, x, y, radius);
+  ctx.stroke();
 
+  const ratio = Math.max(0, Math.min(1, fillRatio));
+  if (ratio > 0) {
+    ctx.save();
+    pathTypeShape(ctx, type, x, y, radius);
+    ctx.clip();
+    const top = y - radius;
+    const height = radius * 2;
+    ctx.fillStyle = COLORS.item[type];
+    ctx.fillRect(x - radius - 2, top + height * (1 - ratio), radius * 2 + 4, height * ratio + 2);
+    ctx.restore();
+  }
+
+  pathTypeShape(ctx, type, x, y, radius);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function pathTypeShape(
+  ctx: CanvasRenderingContext2D,
+  type: ItemType,
+  x: number,
+  y: number,
+  radius: number,
+): void {
   if (type === "red") {
     roundRect(ctx, x - radius, y - radius, radius * 2, radius * 2, 6);
-    ctx.fill();
-    ctx.stroke();
   } else if (type === "blue") {
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
   } else {
     ctx.beginPath();
     ctx.moveTo(x, y - radius);
     ctx.lineTo(x + radius, y + radius * 0.85);
     ctx.lineTo(x - radius, y + radius * 0.85);
     ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
   }
-  ctx.restore();
 }
 
 function roundRect(
