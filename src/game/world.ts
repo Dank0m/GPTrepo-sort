@@ -1,16 +1,26 @@
 import {
-  BELT,
   BIN_CAPACITY,
   ECONOMY,
   INPUT,
   ITEM_STATE,
-  ITEM_TYPES,
+  nextUpgradeCost,
   type ItemType,
+  type UpgradeId,
 } from "../config.ts";
 import { createBin, type Bin } from "./bin.ts";
-import { hitBin, hitItem } from "./hit.ts";
+import { hitBin, hitItem, pointInRect } from "./hit.ts";
 import { createItem, type Item } from "./item.ts";
 import { computeLayout, type PlayfieldLayout } from "./layout.ts";
+import {
+  activeTypes,
+  autoInterval,
+  beltSpeed,
+  coinValue,
+  emptyLevels,
+  minGap,
+  spawnInterval,
+  type UpgradeLevels,
+} from "./upgrades.ts";
 
 export type DropKind = "correct" | "wrong" | "full" | "overflow";
 export type SessionStatus = "playing" | "over";
@@ -28,6 +38,7 @@ export class World {
   elapsed = 0;
   grabbed: Item | null = null;
   hoverBinType: ItemType | null = null;
+  hoverUpgrade: UpgradeId | null = null;
   feedback: DropFeedback | null = null;
   lastDrop: DropKind | "none" = "none";
   coins = 0;
@@ -35,10 +46,12 @@ export class World {
   lives: number = ECONOMY.startLives;
   status: SessionStatus = "playing";
   lastGain = 0;
-  private spawnTimer: number = BELT.spawnInterval;
+  levels: UpgradeLevels = emptyLevels();
+  private spawnTimer = 0;
+  private autoTimer = 0;
 
   constructor(width: number, height: number) {
-    this.layout = computeLayout(width, height);
+    this.layout = computeLayout(width, height, activeTypes(this.levels));
     this.resetSession();
   }
 
@@ -47,15 +60,8 @@ export class World {
   }
 
   resize(width: number, height: number): void {
-    this.layout = computeLayout(width, height);
-    const belt = this.layout.belt;
-    const centerY = belt.y + belt.height / 2;
-    for (const item of this.items) {
-      item.size = this.layout.itemSize;
-      if (item.state === ITEM_STATE.OnBelt) {
-        item.y = centerY;
-      }
-    }
+    this.layout = computeLayout(width, height, activeTypes(this.levels));
+    this.snapBeltItems();
   }
 
   update(dt: number): void {
@@ -67,6 +73,7 @@ export class World {
       return;
     }
     this.moveBelt(dt);
+    this.runAutoSort(dt);
     this.spawnTimer += dt;
     if (this.canSpawn()) {
       this.spawnItem();
@@ -77,6 +84,11 @@ export class World {
   pointerDown(x: number, y: number): boolean {
     if (this.status === "over") {
       this.restart();
+      return false;
+    }
+    const upgrade = this.hitUpgrade(x, y);
+    if (upgrade) {
+      this.tryBuy(upgrade);
       return false;
     }
     if (this.grabbed) {
@@ -96,6 +108,7 @@ export class World {
   }
 
   pointerMove(x: number, y: number): void {
+    this.hoverUpgrade = this.hitUpgrade(x, y) ?? null;
     if (!this.grabbed || this.status !== "playing") {
       return;
     }
@@ -141,11 +154,7 @@ export class World {
       return;
     }
 
-    bin.filled += 1;
-    held.state = ITEM_STATE.InBin;
-    this.removeItem(held);
-    this.applyCorrect();
-    this.setFeedback(slot.type, "correct");
+    this.acceptItem(held, bin);
   }
 
   pointerCancel(): void {
@@ -157,11 +166,31 @@ export class World {
     this.hoverBinType = null;
   }
 
+  tryBuy(id: UpgradeId): boolean {
+    const cost = nextUpgradeCost(id, this.levels[id]);
+    if (cost === null || this.coins < cost) {
+      return false;
+    }
+    this.coins -= cost;
+    this.levels[id] += 1;
+    this.syncBins();
+    this.layout = computeLayout(this.layout.width, this.layout.height, activeTypes(this.levels));
+    this.snapBeltItems();
+    return true;
+  }
+
+  hitUpgrade(x: number, y: number): UpgradeId | undefined {
+    return this.layout.shopButtons.find((button) => pointInRect(x, y, button))?.id;
+  }
+
   private resetSession(): void {
+    this.levels = emptyLevels();
     this.items = [];
-    this.bins = ITEM_TYPES.map((type) => createBin(type, BIN_CAPACITY));
+    this.syncBins();
+    this.layout = computeLayout(this.layout.width, this.layout.height, activeTypes(this.levels));
     this.grabbed = null;
     this.hoverBinType = null;
+    this.hoverUpgrade = null;
     this.feedback = null;
     this.lastDrop = "none";
     this.coins = 0;
@@ -170,12 +199,30 @@ export class World {
     this.status = "playing";
     this.lastGain = 0;
     this.elapsed = 0;
-    this.spawnTimer = BELT.spawnInterval;
+    this.spawnTimer = 0;
+    this.autoTimer = 0;
+  }
+
+  private syncBins(): void {
+    const types = activeTypes(this.levels);
+    const next: Bin[] = [];
+    for (const type of types) {
+      next.push(this.bins.find((bin) => bin.type === type) ?? createBin(type, BIN_CAPACITY));
+    }
+    this.bins = next;
+  }
+
+  private acceptItem(item: Item, bin: Bin): void {
+    bin.filled += 1;
+    item.state = ITEM_STATE.InBin;
+    this.removeItem(item);
+    this.applyCorrect();
+    this.setFeedback(bin.type, "correct");
   }
 
   private applyCorrect(): void {
     this.combo += 1;
-    this.lastGain = ECONOMY.coinValue * this.combo;
+    this.lastGain = coinValue(this.levels) * this.combo;
     this.coins += this.lastGain;
   }
 
@@ -212,10 +259,22 @@ export class World {
     item.x = Math.min(belt.x + belt.width - half, Math.max(belt.x + half, item.x));
   }
 
+  private snapBeltItems(): void {
+    const belt = this.layout.belt;
+    const centerY = belt.y + belt.height / 2;
+    for (const item of this.items) {
+      item.size = this.layout.itemSize;
+      if (item.state === ITEM_STATE.OnBelt) {
+        item.y = centerY;
+      }
+    }
+  }
+
   private moveBelt(dt: number): void {
     const belt = this.layout.belt;
     const centerY = belt.y + belt.height / 2;
     const endX = belt.x + belt.width + this.layout.itemSize;
+    const speed = beltSpeed(this.levels);
     const kept: Item[] = [];
 
     for (const item of this.items) {
@@ -230,7 +289,7 @@ export class World {
         kept.push(item);
         continue;
       }
-      item.x += BELT.speed * dt;
+      item.x += speed * dt;
       item.y = centerY;
       if (item.x >= endX) {
         this.setFeedback(null, "overflow");
@@ -243,34 +302,52 @@ export class World {
     this.items = kept;
   }
 
+  private runAutoSort(dt: number): void {
+    const interval = autoInterval(this.levels);
+    if (interval <= 0) {
+      return;
+    }
+    this.autoTimer += dt;
+    if (this.autoTimer < interval) {
+      return;
+    }
+    this.autoTimer = 0;
+    const candidate = this.items.find((item) => item.state === ITEM_STATE.OnBelt);
+    if (!candidate) {
+      return;
+    }
+    const bin = this.bins.find((entry) => entry.type === candidate.type);
+    if (!bin || bin.filled >= bin.capacity) {
+      return;
+    }
+    this.acceptItem(candidate, bin);
+  }
+
   private canSpawn(): boolean {
     if (this.status !== "playing") {
       return false;
     }
-    if (this.spawnTimer < BELT.spawnInterval) {
+    if (this.spawnTimer < spawnInterval(this.levels)) {
       return false;
     }
     const belt = this.layout.belt;
     const spawnX = belt.x - this.layout.itemSize * 0.35;
+    const gap = minGap(this.levels);
     return this.items.every((item) => {
       if (item.state !== ITEM_STATE.OnBelt) {
         return true;
       }
-      return item.x - spawnX >= BELT.minGap;
+      return item.x - spawnX >= gap;
     });
   }
 
   private spawnItem(): void {
-    const type = randomType();
+    const types = activeTypes(this.levels);
+    const type = types[Math.floor(Math.random() * types.length)] ?? "red";
     const belt = this.layout.belt;
     const size = this.layout.itemSize;
     const x = belt.x - size * 0.35;
     const y = belt.y + belt.height / 2;
     this.items.push(createItem(type, x, y, size));
   }
-}
-
-function randomType(): ItemType {
-  const index = Math.floor(Math.random() * ITEM_TYPES.length);
-  return ITEM_TYPES[index] ?? "red";
 }

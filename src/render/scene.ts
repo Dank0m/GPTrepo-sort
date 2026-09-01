@@ -2,6 +2,7 @@ import { COLORS, GAME_TITLE, ITEM_STATE, PHASE, type ItemType } from "../config.
 import type { CanvasSurface } from "../core/canvas.ts";
 import { drawDebugOverlay } from "../debug/overlay.ts";
 import { drawGameOver, drawHud } from "./hud.ts";
+import { drawShop } from "./shop.ts";
 import type { Item } from "../game/item.ts";
 import type { BinLayout, PlayfieldLayout, Rect } from "../game/layout.ts";
 import type { World } from "../game/world.ts";
@@ -10,6 +11,7 @@ const TYPE_LABEL: Record<ItemType, string> = {
   red: "Red",
   blue: "Blue",
   yellow: "Yellow",
+  green: "Green",
 };
 
 export function drawScene(
@@ -28,6 +30,7 @@ export function drawScene(
   drawBelt(ctx, layout.belt, world.elapsed);
   drawBins(ctx, layout.bins, world);
   drawItems(ctx, world.items);
+  drawShop(ctx, world);
   drawHud(ctx, world, w);
   drawDebugOverlay(
     ctx,
@@ -56,7 +59,7 @@ function drawTitle(ctx: CanvasRenderingContext2D, width: number): void {
 
   ctx.fillStyle = COLORS.muted;
   ctx.font = "13px system-ui, sans-serif";
-  ctx.fillText(`PHASE ${PHASE} — сортируй, копи монеты, не теряй жизни`, width / 2, 42);
+  ctx.fillText(`PHASE ${PHASE} — трать монеты на апгрейды`, width / 2, 42);
 }
 
 function drawBelt(ctx: CanvasRenderingContext2D, belt: Rect, elapsed: number): void {
@@ -198,11 +201,18 @@ function pathTypeShape(
   } else if (type === "blue") {
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
-  } else {
+  } else if (type === "yellow") {
     ctx.beginPath();
     ctx.moveTo(x, y - radius);
     ctx.lineTo(x + radius, y + radius * 0.85);
     ctx.lineTo(x - radius, y + radius * 0.85);
+    ctx.closePath();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(x, y - radius);
+    ctx.lineTo(x + radius, y);
+    ctx.lineTo(x, y + radius);
+    ctx.lineTo(x - radius, y);
     ctx.closePath();
   }
 }

@@ -1,10 +1,12 @@
-/** Current development phase. PHASE 3: coins, combo, lives. No upgrades. */
-export const PHASE = 3;
+/** Current development phase. PHASE 4: upgrade shop. */
+export const PHASE = 4;
 
 export const GAME_TITLE = "Sort & Upgrade";
 
-export const ITEM_TYPES = ["red", "blue", "yellow"] as const;
+export const ITEM_TYPES = ["red", "blue", "yellow", "green"] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];
+export const BASE_TYPES: ItemType[] = ["red", "blue", "yellow"];
+export const EXTRA_TYPE: ItemType = "green";
 
 export const ITEM_STATE = {
   OnBelt: "onBelt",
@@ -33,6 +35,28 @@ export const ECONOMY = {
   startLives: 3,
 } as const;
 
+export const UPGRADE_IDS = ["speed", "value", "type", "auto", "buffer"] as const;
+export type UpgradeId = (typeof UPGRADE_IDS)[number];
+
+export const UPGRADES: Record<
+  UpgradeId,
+  { label: string; max: number; costs: readonly number[] }
+> = {
+  speed: { label: "Скорость", max: 4, costs: [30, 60, 120, 240] },
+  value: { label: "Ценность", max: 3, costs: [40, 80, 160] },
+  type: { label: "Тип", max: 1, costs: [80] },
+  auto: { label: "Автосорт", max: 3, costs: [50, 100, 200] },
+  buffer: { label: "Буфер", max: 3, costs: [25, 50, 100] },
+};
+
+export function nextUpgradeCost(id: UpgradeId, level: number): number | null {
+  const def = UPGRADES[id];
+  if (level >= def.max) {
+    return null;
+  }
+  return def.costs[level] ?? null;
+}
+
 export const COLORS = {
   background: "#12141a",
   table: "#181c26",
@@ -52,10 +76,12 @@ export const COLORS = {
     red: "#e85d4c",
     blue: "#4c8fe8",
     yellow: "#e8c84c",
+    green: "#5dcc7a",
   },
   itemDark: {
     red: "#b53d30",
     blue: "#2f63b0",
     yellow: "#b8941f",
+    green: "#2f8f4a",
   },
 } as const;

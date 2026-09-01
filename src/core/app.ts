@@ -3,6 +3,7 @@ import { GameLoop } from "./loop.ts";
 import { canvasPoint } from "./pointer.ts";
 import { World } from "../game/world.ts";
 import { drawScene } from "../render/scene.ts";
+import { shopCursor } from "../render/shop.ts";
 
 export class App {
   private readonly surface: CanvasSurface;
@@ -52,6 +53,9 @@ export class App {
     canvas.addEventListener("pointermove", (event) => {
       const point = canvasPoint(canvas, event);
       this.world.pointerMove(point.x, point.y);
+      if (!this.world.grabbed) {
+        canvas.style.cursor = shopCursor(this.world, point.x, point.y) ? "pointer" : "grab";
+      }
     });
 
     const release = (event: PointerEvent): void => {
