@@ -44,7 +44,7 @@ export const INPUT = {
 
 export const AUTO_SORT = {
   /** Seconds for an auto-sorted item to fly into its bin. */
-  flySeconds: 1.5,
+  flySeconds: 0.45,
   /** Arc height in CSS pixels. */
   hop: 42,
 } as const;
