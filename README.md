@@ -15,6 +15,13 @@ npm run dev
 
 Откройте адрес, который выведет Vite (по умолчанию `http://localhost:47321`).
 
+Собранная версия без HMR (удобнее для Preview):
+
+```bash
+npm run build
+npm run preview
+```
+
 Другие команды:
 
 ```bash
