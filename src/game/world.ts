@@ -10,6 +10,7 @@ import {
   type UpgradeId,
 } from "../config.ts";
 import { sfx } from "../audio/sfx.ts";
+import { loadRecords, saveRecords, type Records } from "./save.ts";
 import { createBin, type Bin } from "./bin.ts";
 import { Fx } from "./fx.ts";
 import { hitBin, hitItem, pointInRect } from "./hit.ts";
@@ -62,6 +63,10 @@ export class World {
   debug = false;
   shopPulse: ShopPulse | null = null;
   sortedCount = 0;
+  paused = false;
+  records: Records = loadRecords();
+  beatBestCoins = false;
+  beatBestCombo = false;
   private spawnTimer = 0;
   private autoTimer = 0;
 
@@ -74,12 +79,44 @@ export class World {
     this.resetSession();
   }
 
+  pause(): void {
+    if (this.paused || this.status !== "playing") {
+      return;
+    }
+    this.paused = true;
+    if (this.grabbed) {
+      this.returnToBelt(this.grabbed);
+      this.grabbed = null;
+      this.hoverBinType = null;
+    }
+    sfx.hush();
+  }
+
+  resume(): void {
+    if (!this.paused) {
+      return;
+    }
+    this.paused = false;
+    sfx.unlock();
+  }
+
+  togglePause(): void {
+    if (this.paused) {
+      this.resume();
+    } else {
+      this.pause();
+    }
+  }
+
   resize(width: number, height: number): void {
     this.layout = computeLayout(width, height, activeTypes(this.levels));
     this.snapBeltItems();
   }
 
   update(dt: number): void {
+    if (this.paused) {
+      return;
+    }
     this.elapsed += dt;
     this.fx.update(dt);
     this.updateFlights(dt);
@@ -102,15 +139,26 @@ export class World {
   }
 
   pointerDown(x: number, y: number): boolean {
-    sfx.unlock();
     if (pointInRect(x, y, this.layout.mute)) {
       sfx.toggle();
+      if (!this.paused && !sfx.muted) {
+        sfx.unlock();
+      }
+      return false;
+    }
+    if (pointInRect(x, y, this.layout.pause)) {
+      this.togglePause();
       return false;
     }
     if (this.status === "over") {
       this.restart();
       return false;
     }
+    if (this.paused) {
+      this.resume();
+      return false;
+    }
+    sfx.unlock();
     const upgrade = this.hitUpgrade(x, y);
     if (upgrade) {
       this.tryBuy(upgrade);
@@ -133,7 +181,7 @@ export class World {
 
   pointerMove(x: number, y: number): void {
     this.hoverUpgrade = this.hitUpgrade(x, y) ?? null;
-    if (!this.grabbed || this.status !== "playing") {
+    if (!this.grabbed || this.status !== "playing" || this.paused) {
       return;
     }
     this.placeGrabbed(this.grabbed, x, y);
@@ -242,6 +290,9 @@ export class World {
     this.autoTimer = 0;
     this.shopPulse = null;
     this.sortedCount = 0;
+    this.paused = false;
+    this.beatBestCoins = false;
+    this.beatBestCombo = false;
     this.fx.clear();
   }
 
@@ -272,10 +323,24 @@ export class World {
       this.lives = 0;
       this.status = "over";
       this.grabbed = null;
+      this.commitRecords();
       sfx.play("over");
     } else {
       sfx.play("bad");
     }
+  }
+
+  private commitRecords(): void {
+    this.records.gamesPlayed += 1;
+    this.beatBestCoins = this.coins > this.records.bestCoins;
+    this.beatBestCombo = this.maxCombo > this.records.bestCombo;
+    if (this.beatBestCoins) {
+      this.records.bestCoins = this.coins;
+    }
+    if (this.beatBestCombo) {
+      this.records.bestCombo = this.maxCombo;
+    }
+    saveRecords(this.records);
   }
 
   private setFeedback(binType: ItemType | null, kind: DropKind): void {

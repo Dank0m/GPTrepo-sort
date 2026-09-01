@@ -1,5 +1,5 @@
-/** Current development phase. PHASE 5: UI polish, feedback, sound. */
-export const PHASE = 5;
+/** Current development phase. PHASE 6: pause, records, focus. */
+export const PHASE = 6;
 
 export const GAME_TITLE = "Sort & Upgrade";
 

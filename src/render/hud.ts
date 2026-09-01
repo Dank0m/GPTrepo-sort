@@ -39,14 +39,16 @@ export function drawHud(ctx: CanvasRenderingContext2D, world: World): void {
   ctx.fillStyle = COLORS.heart;
   ctx.font = `${narrow ? 16 : 18}px system-ui, sans-serif`;
   const hearts = "♥".repeat(world.lives) + "♡".repeat(Math.max(0, ECONOMY.startLives - world.lives));
-  ctx.fillText(hearts, mute.x - 10, cy);
+  ctx.fillText(hearts, world.layout.pause.x - 10, cy);
 
+  drawIconButton(ctx, world.layout.pause);
+  drawPauseGlyph(ctx, world.layout.pause, world.paused);
   drawMute(ctx, world, mute);
   ctx.restore();
 }
 
 export function drawHint(ctx: CanvasRenderingContext2D, world: World): void {
-  if (world.status !== "playing" || world.sortedCount > 0 || world.elapsed > 7) {
+  if (world.status !== "playing" || world.paused || world.sortedCount > 0 || world.elapsed > 7) {
     return;
   }
   const belt = world.layout.belt;
@@ -69,7 +71,7 @@ export function drawGameOver(ctx: CanvasRenderingContext2D, world: World, width:
   ctx.fillRect(0, 0, width, height);
 
   const boxW = Math.min(360, width - 40);
-  const boxH = 188;
+  const boxH = world.beatBestCoins || world.beatBestCombo ? 228 : 208;
   const x = (width - boxW) / 2;
   const y = (height - boxH) / 2;
   roundRect(ctx, x, y, boxW, boxH, 18);
@@ -83,20 +85,81 @@ export function drawGameOver(ctx: CanvasRenderingContext2D, world: World, width:
   ctx.textBaseline = "middle";
   ctx.fillStyle = COLORS.title;
   ctx.font = "800 26px ui-rounded, system-ui, sans-serif";
-  ctx.fillText("Конец сессии", width / 2, y + 44);
+  ctx.fillText("Конец сессии", width / 2, y + 40);
+
+  if (world.beatBestCoins) {
+    ctx.fillStyle = COLORS.gold;
+    ctx.font = "800 16px ui-rounded, system-ui, sans-serif";
+    ctx.fillText("Новый рекорд!", width / 2, y + 70);
+  }
 
   ctx.fillStyle = COLORS.gold;
   ctx.font = "700 18px ui-rounded, system-ui, sans-serif";
-  ctx.fillText(`Монеты  ${world.coins}`, width / 2, y + 88);
+  ctx.fillText(`Монеты  ${world.coins}`, width / 2, y + (world.beatBestCoins ? 98 : 88));
 
   ctx.fillStyle = COLORS.muted;
   ctx.font = "15px ui-rounded, system-ui, sans-serif";
-  ctx.fillText(`Макс. комбо  ×${world.maxCombo}`, width / 2, y + 118);
+  const comboLine = world.beatBestCombo
+    ? `Макс. комбо  ×${world.maxCombo}  •  рекорд`
+    : `Макс. комбо  ×${world.maxCombo}`;
+  ctx.fillText(comboLine, width / 2, y + (world.beatBestCoins ? 126 : 118));
+  ctx.fillText(`Лучший счёт  ${world.records.bestCoins}`, width / 2, y + (world.beatBestCoins ? 150 : 142));
 
   ctx.fillStyle = COLORS.title;
   ctx.font = "600 14px ui-rounded, system-ui, sans-serif";
-  ctx.fillText("Нажми, чтобы начать снова", width / 2, y + 152);
+  ctx.fillText("Нажми, чтобы начать снова", width / 2, y + boxH - 32);
   ctx.restore();
+}
+
+export function drawPause(ctx: CanvasRenderingContext2D, world: World, width: number, height: number): void {
+  if (!world.paused || world.status !== "playing") {
+    return;
+  }
+  ctx.save();
+  ctx.fillStyle = "rgba(10, 12, 18, 0.72)";
+  ctx.fillRect(0, 0, width, height);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = COLORS.title;
+  ctx.font = "800 32px ui-rounded, system-ui, sans-serif";
+  ctx.fillText("Пауза", width / 2, height / 2 - 18);
+  ctx.fillStyle = COLORS.muted;
+  ctx.font = "600 15px ui-rounded, system-ui, sans-serif";
+  ctx.fillText("Нажми, чтобы продолжить", width / 2, height / 2 + 18);
+  ctx.restore();
+}
+
+function drawIconButton(
+  ctx: CanvasRenderingContext2D,
+  rect: { x: number; y: number; width: number; height: number },
+): void {
+  roundRect(ctx, rect.x, rect.y, rect.width, rect.height, 10);
+  ctx.fillStyle = "rgba(255,255,255,0.04)";
+  ctx.fill();
+  ctx.strokeStyle = COLORS.beltEdge;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+function drawPauseGlyph(
+  ctx: CanvasRenderingContext2D,
+  rect: { x: number; y: number; width: number; height: number },
+  paused: boolean,
+): void {
+  const cx = rect.x + rect.width / 2;
+  const cy = rect.y + rect.height / 2;
+  ctx.fillStyle = COLORS.title;
+  if (paused) {
+    ctx.beginPath();
+    ctx.moveTo(cx - 6, cy - 8);
+    ctx.lineTo(cx + 8, cy);
+    ctx.lineTo(cx - 6, cy + 8);
+    ctx.closePath();
+    ctx.fill();
+    return;
+  }
+  ctx.fillRect(cx - 7, cy - 8, 5, 16);
+  ctx.fillRect(cx + 2, cy - 8, 5, 16);
 }
 
 function drawMute(ctx: CanvasRenderingContext2D, world: World, mute: { x: number; y: number; width: number; height: number }): void {

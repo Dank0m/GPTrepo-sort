@@ -29,10 +29,16 @@ export class Sfx {
     }
   }
 
+  hush(): void {
+    if (this.ctx?.state === "running") {
+      void this.ctx.suspend();
+    }
+  }
+
   play(kind: "ok" | "bad" | "buy" | "reject" | "full" | "over" | "dump", combo = 1): void {
     if (this.muted) return;
     const ctx = this.ensure();
-    if (!ctx) return;
+    if (!ctx || ctx.state !== "running") return;
     const now = ctx.currentTime;
 
     switch (kind) {

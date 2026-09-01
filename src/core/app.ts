@@ -20,6 +20,7 @@ export class App {
     this.bindResize();
     this.bindPointer();
     this.bindKeys();
+    this.bindFocus();
   }
 
   start(): void {
@@ -41,6 +42,7 @@ export class App {
   private bindPointer(): void {
     const canvas = this.surface.canvas;
     canvas.style.cursor = "grab";
+    canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
     canvas.addEventListener("pointerdown", (event) => {
       const point = canvasPoint(canvas, event);
@@ -79,7 +81,24 @@ export class App {
       if (event.key === "d" || event.key === "D") {
         this.world.debug = !this.world.debug;
       }
+      if (event.key === "Escape" || event.key === "p" || event.key === "P") {
+        if (this.world.status === "playing") {
+          this.world.togglePause();
+        }
+      }
     });
+  }
+
+  private bindFocus(): void {
+    const onHidden = (): void => {
+      this.world.pause();
+    };
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        onHidden();
+      }
+    });
+    window.addEventListener("blur", onHidden);
   }
 
   private update(dt: number): void {

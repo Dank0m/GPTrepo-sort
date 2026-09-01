@@ -57,7 +57,7 @@ export function drawShop(ctx: CanvasRenderingContext2D, world: World): void {
 }
 
 export function shopCursor(world: World, x: number, y: number): boolean {
-  if (pointInRect(x, y, world.layout.mute)) {
+  if (pointInRect(x, y, world.layout.mute) || pointInRect(x, y, world.layout.pause)) {
     return true;
   }
   return world.layout.shopButtons.some((button) => pointInRect(x, y, button));

@@ -2,7 +2,7 @@ import { COLORS, GAME_TITLE, ITEM_STATE, TYPE_LABEL, type ItemType } from "../co
 import type { CanvasSurface } from "../core/canvas.ts";
 import { drawDebugOverlay } from "../debug/overlay.ts";
 import { beltSpeed } from "../game/upgrades.ts";
-import { drawGameOver, drawHint, drawHud } from "./hud.ts";
+import { drawGameOver, drawHint, drawHud, drawPause } from "./hud.ts";
 import { drawShop } from "./shop.ts";
 import type { Item } from "../game/item.ts";
 import type { BinLayout, PlayfieldLayout, Rect } from "../game/layout.ts";
@@ -46,6 +46,8 @@ export function drawScene(
     ctx.fillStyle = `rgba(232, 93, 76, ${world.fx.flash * 0.42})`;
     ctx.fillRect(0, 0, w, h);
   }
+
+  drawPause(ctx, world, w, h);
 
   if (world.debug) {
     drawDebugOverlay(
