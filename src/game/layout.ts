@@ -69,8 +69,9 @@ export function computeLayout(
   const playTop = hud.y + hud.height + pad * 0.35;
   const playBottom = shop.y - pad * 0.7;
   const playH = Math.max(120, playBottom - playTop);
+  const manyTypes = types.length >= 5;
 
-  const beltHeight = clamp(playH * 0.3, 56, 108);
+  const beltHeight = clamp(playH * (manyTypes ? 0.22 : 0.3), 52, 108);
   const belt: Rect = {
     x: pad,
     y: playTop + playH * 0.06,
@@ -79,21 +80,30 @@ export function computeLayout(
   };
 
   const binCount = Math.max(1, types.length);
-  const binTop = belt.y + belt.height + pad * 0.9;
-  const binHeight = clamp(shop.y - binTop - pad * 0.5, 72, 150);
+  const binAreaTop = belt.y + belt.height + pad * 0.7;
+  const binAreaH = Math.max(72, shop.y - binAreaTop - pad * 0.45);
+  const rows = binCount >= 5 ? 2 : 1;
+  const cols = Math.ceil(binCount / rows);
   const gap = narrow ? 8 : 12;
-  const binWidth = Math.min(180, (belt.width - gap * (binCount - 1)) / binCount);
-  const rowWidth = binCount * binWidth + (binCount - 1) * gap;
-  const rowX = belt.x + (belt.width - rowWidth) / 2;
+  const rowGap = 8;
+  const binHeight = (binAreaH - rowGap * (rows - 1)) / rows;
+  const binWidth = Math.min(160, (belt.width - gap * (cols - 1)) / cols);
 
-  const bins: BinLayout[] = types.map((type, index) => ({
-    type,
-    x: rowX + index * (binWidth + gap),
-    y: binTop,
-    width: binWidth,
-    height: binHeight,
-    capacity: BIN_CAPACITY,
-  }));
+  const bins: BinLayout[] = types.map((type, index) => {
+    const row = Math.floor(index / cols);
+    const col = index % cols;
+    const inRow = row === rows - 1 ? binCount - row * cols : cols;
+    const rowWidth = inRow * binWidth + (inRow - 1) * gap;
+    const rowX = belt.x + (belt.width - rowWidth) / 2;
+    return {
+      type,
+      x: rowX + col * (binWidth + gap),
+      y: binAreaTop + row * (binHeight + rowGap),
+      width: binWidth,
+      height: binHeight,
+      capacity: BIN_CAPACITY,
+    };
+  });
 
   const shopButtons = layoutShopButtons(shop, shopRows);
 

@@ -440,6 +440,39 @@ export class World {
     this.fx.burst(cx, cy, COLORS.item[bin.type], fromHand ? 14 : 18);
     this.fx.float(cx, cy - 8, `+${this.lastGain}`, COLORS.gold);
     sfx.play("ok", this.combo);
+    this.tryDump();
+  }
+
+  private tryDump(): void {
+    if (this.items.some((item) => item.state === ITEM_STATE.Flying)) {
+      return;
+    }
+    if (this.bins.length === 0 || this.bins.some((bin) => bin.filled < bin.capacity)) {
+      return;
+    }
+    const types = this.bins.length;
+    const bonus = ECONOMY.dumpBonus(types);
+    this.coins += bonus;
+    this.lastGain = bonus;
+    for (const bin of this.bins) {
+      bin.filled = 0;
+    }
+    const hud = this.layout.hud;
+    this.fx.celebrateDump(
+      bonus,
+      types,
+      this.layout.bins.map((slot) => ({
+        x: slot.x,
+        y: slot.y,
+        width: slot.width,
+        height: slot.height,
+        color: COLORS.item[slot.type],
+      })),
+      hud.x + 28,
+      hud.y + hud.height * 0.42,
+    );
+    this.fx.float(this.layout.width / 2, this.layout.belt.y + this.layout.belt.height + 8, `+${bonus}`, COLORS.gold, 36, 1.4);
+    sfx.play("dump");
   }
 
   private canSpawn(): boolean {

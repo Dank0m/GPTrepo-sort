@@ -34,6 +34,13 @@ export function drawScene(
   drawHud(ctx, world);
   drawHint(ctx, world);
   drawFloaters(ctx, world);
+  drawMotes(ctx, world);
+
+  if (world.fx.goldFlash > 0) {
+    ctx.fillStyle = `rgba(232, 200, 76, ${world.fx.goldFlash * 0.32})`;
+    ctx.fillRect(0, 0, w, h);
+  }
+  drawDump(ctx, world, w, h);
 
   if (world.fx.flash > 0) {
     ctx.fillStyle = `rgba(232, 93, 76, ${world.fx.flash * 0.42})`;
@@ -163,18 +170,23 @@ function drawBins(
     ctx.stroke();
 
     const iconX = slot.x + slot.width / 2;
-    const iconY = slot.y + slot.height * 0.38;
-    drawTypeShape(ctx, slot.type, iconX, iconY, Math.min(38, slot.width * 0.28));
+    const compact = slot.width < 78 || slot.height < 92;
+    const iconY = slot.y + slot.height * (compact ? 0.42 : 0.38);
+    drawTypeShape(ctx, slot.type, iconX, iconY, Math.min(compact ? 22 : 38, slot.width * 0.28));
 
-    ctx.fillStyle = COLORS.title;
-    ctx.font = `700 ${slot.width < 90 ? 11 : 14}px ui-rounded, system-ui, sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "bottom";
-    ctx.fillText(TYPE_LABEL[slot.type], iconX, slot.y + slot.height - 22);
+    if (!compact) {
+      ctx.fillStyle = COLORS.title;
+      ctx.font = `700 ${slot.width < 90 ? 11 : 14}px ui-rounded, system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(TYPE_LABEL[slot.type], iconX, slot.y + slot.height - 22);
+    }
 
     ctx.fillStyle = full ? COLORS.gold : COLORS.muted;
-    ctx.font = "12px ui-rounded, system-ui, sans-serif";
-    ctx.fillText(full ? "ПОЛНО" : `${filled} / ${capacity}`, iconX, slot.y + slot.height - 8);
+    ctx.font = `${compact ? 10 : 12}px ui-rounded, system-ui, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.fillText(full ? "ПОЛНО" : `${filled}/${capacity}`, iconX, slot.y + slot.height - (compact ? 6 : 8));
   }
 }
 
@@ -224,6 +236,46 @@ function drawParticles(ctx: CanvasRenderingContext2D, world: World): void {
   ctx.globalAlpha = 1;
 }
 
+function drawMotes(ctx: CanvasRenderingContext2D, world: World): void {
+  for (const m of world.fx.motes) {
+    const t = Math.max(0, m.life / m.maxLife);
+    ctx.globalAlpha = Math.min(1, t * 1.4);
+    ctx.fillStyle = m.color;
+    ctx.beginPath();
+    ctx.arc(m.x, m.y, 4 + 2 * t, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawDump(ctx: CanvasRenderingContext2D, world: World, width: number, height: number): void {
+  const dump = world.fx.dump;
+  if (!dump) return;
+  const t = dump.life / dump.maxLife;
+  const pop = t > 0.85 ? (1 - t) / 0.15 : 1;
+  const scale = 0.86 + 0.14 * pop;
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, t * 1.35);
+  ctx.translate(width / 2, height * 0.38);
+  ctx.scale(scale, scale);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = COLORS.gold;
+  ctx.font = "800 34px ui-rounded, system-ui, sans-serif";
+  ctx.strokeStyle = "#12141a";
+  ctx.lineWidth = 6;
+  ctx.strokeText("ПОЛНЫЙ НАБОР", 0, -22);
+  ctx.fillText("ПОЛНЫЙ НАБОР", 0, -22);
+  ctx.font = "800 42px ui-rounded, system-ui, sans-serif";
+  ctx.strokeText(`+${dump.bonus}`, 0, 22);
+  ctx.fillText(`+${dump.bonus}`, 0, 22);
+  ctx.fillStyle = COLORS.title;
+  ctx.font = "700 16px ui-rounded, system-ui, sans-serif";
+  ctx.strokeText(`${dump.types} типов · буфер сброшен`, 0, 58);
+  ctx.fillText(`${dump.types} типов · буфер сброшен`, 0, 58);
+  ctx.restore();
+}
+
 function drawFloaters(ctx: CanvasRenderingContext2D, world: World): void {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -231,7 +283,6 @@ function drawFloaters(ctx: CanvasRenderingContext2D, world: World): void {
     const t = f.life / f.maxLife;
     ctx.save();
     ctx.globalAlpha = Math.min(1, t * 1.2);
-    ctx.fillStyle = "#12141a";
     ctx.font = `800 ${f.size}px ui-rounded, system-ui, sans-serif`;
     ctx.lineWidth = 4;
     ctx.strokeStyle = "#12141a";
@@ -268,23 +319,64 @@ function pathTypeShape(
 ): void {
   if (type === "red") {
     roundRect(ctx, x - radius, y - radius, radius * 2, radius * 2, 6);
-  } else if (type === "blue") {
+    return;
+  }
+  if (type === "blue") {
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
-  } else if (type === "yellow") {
+    return;
+  }
+  if (type === "yellow") {
     ctx.beginPath();
     ctx.moveTo(x, y - radius);
     ctx.lineTo(x + radius, y + radius * 0.85);
     ctx.lineTo(x - radius, y + radius * 0.85);
     ctx.closePath();
-  } else {
+    return;
+  }
+  if (type === "green") {
     ctx.beginPath();
     ctx.moveTo(x, y - radius);
     ctx.lineTo(x + radius, y);
     ctx.lineTo(x, y + radius);
     ctx.lineTo(x - radius, y);
     ctx.closePath();
+    return;
   }
+  if (type === "purple") {
+    starPath(ctx, x, y, 5, radius, radius * 0.42);
+    return;
+  }
+  ctx.beginPath();
+  for (let i = 0; i < 6; i += 1) {
+    const angle = (Math.PI / 3) * i - Math.PI / 6;
+    const px = x + Math.cos(angle) * radius;
+    const py = y + Math.sin(angle) * radius;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+}
+
+function starPath(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  spikes: number,
+  outer: number,
+  inner: number,
+): void {
+  ctx.beginPath();
+  let rot = -Math.PI / 2;
+  const step = Math.PI / spikes;
+  ctx.moveTo(cx + Math.cos(rot) * outer, cy + Math.sin(rot) * outer);
+  for (let i = 0; i < spikes; i += 1) {
+    rot += step;
+    ctx.lineTo(cx + Math.cos(rot) * inner, cy + Math.sin(rot) * inner);
+    rot += step;
+    ctx.lineTo(cx + Math.cos(rot) * outer, cy + Math.sin(rot) * outer);
+  }
+  ctx.closePath();
 }
 
 function roundRect(

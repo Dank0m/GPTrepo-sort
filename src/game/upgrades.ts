@@ -1,4 +1,4 @@
-import { BASE_TYPES, EXTRA_TYPE, type ItemType, type UpgradeId } from "../config.ts";
+import { BASE_TYPES, EXTRA_TYPES, type ItemType, type UpgradeId } from "../config.ts";
 
 export type UpgradeLevels = Record<UpgradeId, number>;
 
@@ -13,7 +13,8 @@ export function emptyLevels(): UpgradeLevels {
 }
 
 export function activeTypes(levels: UpgradeLevels): ItemType[] {
-  return levels.type > 0 ? [...BASE_TYPES, EXTRA_TYPE] : [...BASE_TYPES];
+  const extra = EXTRA_TYPES.slice(0, Math.max(0, levels.type));
+  return [...BASE_TYPES, ...extra];
 }
 
 export function beltSpeed(levels: UpgradeLevels): number {

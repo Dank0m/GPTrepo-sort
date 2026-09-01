@@ -3,16 +3,18 @@ export const PHASE = 5;
 
 export const GAME_TITLE = "Sort & Upgrade";
 
-export const ITEM_TYPES = ["red", "blue", "yellow", "green"] as const;
+export const ITEM_TYPES = ["red", "blue", "yellow", "green", "purple", "orange"] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];
 export const BASE_TYPES: ItemType[] = ["red", "blue", "yellow"];
-export const EXTRA_TYPE: ItemType = "green";
+export const EXTRA_TYPES: ItemType[] = ["green", "purple", "orange"];
 
 export const TYPE_LABEL: Record<ItemType, string> = {
   red: "Квадрат",
   blue: "Круг",
   yellow: "Треуг.",
   green: "Ромб",
+  purple: "Звезда",
+  orange: "Гекс",
 };
 
 export const ITEM_STATE = {
@@ -42,7 +44,7 @@ export const INPUT = {
 
 export const AUTO_SORT = {
   /** Seconds for an auto-sorted item to fly into its bin. */
-  flySeconds: 0.45,
+  flySeconds: 1.5,
   /** Arc height in CSS pixels. */
   hop: 42,
 } as const;
@@ -50,6 +52,8 @@ export const AUTO_SORT = {
 export const ECONOMY = {
   coinValue: 10,
   startLives: 3,
+  /** Jackpot when every bin is full, then fills reset. Scales with type count. */
+  dumpBonus: (typeCount: number) => 120 * typeCount * typeCount,
 } as const;
 
 export const UPGRADE_IDS = ["speed", "value", "type", "auto", "buffer"] as const;
@@ -61,7 +65,7 @@ export const UPGRADES: Record<
 > = {
   speed: { label: "Скорость", max: 4, costs: [30, 60, 120, 240] },
   value: { label: "Ценность", max: 3, costs: [40, 80, 160] },
-  type: { label: "Тип", max: 1, costs: [80] },
+  type: { label: "Тип", max: 3, costs: [80, 160, 320] },
   auto: { label: "Автосорт", max: 3, costs: [50, 100, 200] },
   buffer: { label: "Буфер", max: 3, costs: [25, 50, 100] },
 };
@@ -94,11 +98,15 @@ export const COLORS = {
     blue: "#4c8fe8",
     yellow: "#e8c84c",
     green: "#5dcc7a",
+    purple: "#c07cff",
+    orange: "#e8943a",
   },
   itemDark: {
     red: "#b53d30",
     blue: "#2f63b0",
     yellow: "#b8941f",
     green: "#2f8f4a",
+    purple: "#7a3fb8",
+    orange: "#b86a1c",
   },
 } as const;

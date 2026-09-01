@@ -29,7 +29,7 @@ export class Sfx {
     }
   }
 
-  play(kind: "ok" | "bad" | "buy" | "reject" | "full" | "over", combo = 1): void {
+  play(kind: "ok" | "bad" | "buy" | "reject" | "full" | "over" | "dump", combo = 1): void {
     if (this.muted) return;
     const ctx = this.ensure();
     if (!ctx) return;
@@ -58,6 +58,12 @@ export class Sfx {
         this.tone(ctx, now, 392, 0.16, "sine", 0.08);
         this.tone(ctx, now + 0.14, 294, 0.18, "sine", 0.07);
         this.tone(ctx, now + 0.3, 196, 0.28, "sine", 0.07);
+        break;
+      case "dump":
+        this.tone(ctx, now, 392, 0.1, "sine", 0.07);
+        this.tone(ctx, now + 0.08, 494, 0.1, "sine", 0.07);
+        this.tone(ctx, now + 0.16, 587, 0.12, "triangle", 0.08);
+        this.tone(ctx, now + 0.28, 784, 0.18, "sine", 0.09);
         break;
     }
   }
