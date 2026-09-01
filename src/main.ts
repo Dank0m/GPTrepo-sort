@@ -1,10 +1,10 @@
 import "./style.css";
-import { App } from "./core/app.ts";
+import { Game } from "./game/Game.ts";
 
 const canvas = document.querySelector("#game");
 if (!(canvas instanceof HTMLCanvasElement)) {
   throw new Error("Canvas #game not found");
 }
 
-const app = new App(canvas);
-app.start();
+const game = new Game(canvas);
+game.start();
