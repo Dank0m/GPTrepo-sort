@@ -63,3 +63,30 @@
 - [x] Рекорд монет и макс. комбо сохраняются между сессиями
 - [x] «Новый рекорд» на экране конца сессии
 - [x] Long-press не открывает контекстное меню
+
+## PHASE 7 — SDK и опциональная реклама
+
+Спека: `GAME_DESIGN.md` §11. **Не начинать код**, пока спека не согласована.  
+`World` / HUD / Shop не вызывают `YaGames`. Только `AdService` и `YandexService`.
+
+### Слой сервисов
+
+- [ ] `src/services/YandexService.ts` — init, LoadingAPI, GameplayAPI, `showRewardedAd`, `showInterstitial` (заглушка), `saveGame` / `loadGame`, язык, пустые achievements
+- [ ] `src/services/AdService.ts` — цели `continue` / `dumpDouble` / `freeCoins`, пауза + mute на ролике, лимиты сессии и кулдаун
+- [ ] Fallback без SDK: игра как Phase 6, кнопки рекламы скрыты, наград без ролика нет
+- [ ] `?mockAds=1` только для локальной отладки
+- [ ] `index.html`: `<script src="/sdk.js">` (на localhost скрипт не обязан существовать)
+
+### Rewarded (все опциональны, текст кнопки = реклама + награда)
+
+- [ ] Game over: CONTINUE? → +1 жизнь, сессия жива, 1 раз за сессию
+- [ ] После полного набора: DOUBLE REWARD → ещё один джекпот, 1 раз на дамп, оффер ~5 с
+- [ ] FREE COINS в магазине: +500, кулдаун 90 с
+- [ ] Награда только после `onRewarded`; skip / ошибка / нет SDK → без награды
+- [ ] Нет рекламы на каждый промах и нет автопоказа
+
+### Сейв и события SDK
+
+- [ ] Рекорд `{ bestCoins, bestCombo, gamesPlayed }`: cloud `setData` + `localStorage`
+- [ ] `GameplayAPI.start/stop` на паузе, game over, рекламе
+- [ ] `LoadingAPI.ready()` когда канвас уже играбелен
