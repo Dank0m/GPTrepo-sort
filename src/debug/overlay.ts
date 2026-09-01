@@ -1,32 +1,11 @@
 import type { CanvasSurface } from "../core/canvas.ts";
-import { COLORS, GAME_TITLE, PHASE } from "../config.ts";
+import { COLORS, PHASE } from "../config.ts";
 
-export function drawPhase0Frame(
-  surface: CanvasSurface,
-  fps: number,
-): void {
-  const { ctx, cssWidth: w, cssHeight: h } = surface;
-
-  ctx.fillStyle = COLORS.background;
-  ctx.fillRect(0, 0, w, h);
-
-  ctx.fillStyle = COLORS.title;
-  ctx.font = "600 32px system-ui, sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(GAME_TITLE, w / 2, h / 2 - 18);
-
-  ctx.fillStyle = COLORS.muted;
-  ctx.font = "16px system-ui, sans-serif";
-  ctx.fillText(`PHASE ${PHASE} — bootstrap`, w / 2, h / 2 + 18);
-
-  drawDebugOverlay(ctx, surface, fps);
-}
-
-function drawDebugOverlay(
+export function drawDebugOverlay(
   ctx: CanvasRenderingContext2D,
   surface: CanvasSurface,
   fps: number,
+  itemCount = 0,
 ): void {
   const { cssWidth, cssHeight, bufferWidth, bufferHeight, dpr } = surface.metrics;
   const lines = [
@@ -35,6 +14,7 @@ function drawDebugOverlay(
     `BUF  ${bufferWidth}×${bufferHeight}`,
     `DPR  ${dpr.toFixed(2)}`,
     `PHASE ${PHASE}`,
+    `ITEMS ${itemCount}`,
   ];
 
   ctx.save();

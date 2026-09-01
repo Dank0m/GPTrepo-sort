@@ -1,13 +1,16 @@
 import { CanvasSurface } from "./canvas.ts";
 import { GameLoop } from "./loop.ts";
-import { drawPhase0Frame } from "../debug/overlay.ts";
+import { World } from "../game/world.ts";
+import { drawScene } from "../render/scene.ts";
 
 export class App {
   private readonly surface: CanvasSurface;
   private readonly loop: GameLoop;
+  private readonly world: World;
 
   constructor(canvas: HTMLCanvasElement) {
     this.surface = new CanvasSurface(canvas);
+    this.world = new World(window.innerWidth, window.innerHeight);
     this.loop = new GameLoop({
       update: (dt) => this.update(dt),
       render: () => this.render(),
@@ -17,27 +20,28 @@ export class App {
 
   start(): void {
     this.surface.resize();
+    this.world.resize(this.surface.cssWidth, this.surface.cssHeight);
     this.loop.start();
   }
 
   private bindResize(): void {
-    window.addEventListener("resize", () => {
+    const onResize = (): void => {
       this.surface.resize();
-    });
-    window.addEventListener("orientationchange", () => {
-      this.surface.resize();
-    });
-    window.visualViewport?.addEventListener("resize", () => {
-      this.surface.resize();
-    });
+      this.world.resize(this.surface.cssWidth, this.surface.cssHeight);
+    };
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    window.visualViewport?.addEventListener("resize", onResize);
   }
 
-  private update(_dt: number): void {
-    // PHASE 0: no simulation, no gameplay systems.
+  private update(dt: number): void {
+    this.world.update(dt);
   }
 
   private render(): void {
-    this.surface.resize();
-    drawPhase0Frame(this.surface, this.loop.framesPerSecond);
+    if (this.surface.resize()) {
+      this.world.resize(this.surface.cssWidth, this.surface.cssHeight);
+    }
+    drawScene(this.surface, this.world, this.loop.framesPerSecond);
   }
 }
