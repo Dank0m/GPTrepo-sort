@@ -186,6 +186,7 @@ export class World {
   private resetSession(): void {
     this.levels = emptyLevels();
     this.items = [];
+    this.bins = [];
     this.syncBins();
     this.layout = computeLayout(this.layout.width, this.layout.height, activeTypes(this.levels));
     this.grabbed = null;
