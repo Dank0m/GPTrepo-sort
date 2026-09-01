@@ -16,6 +16,7 @@ export type Floater = {
   life: number;
   maxLife: number;
   color: string;
+  size: number;
 };
 
 export class Fx {
@@ -59,25 +60,26 @@ export class Fx {
     }
   }
 
-  float(x: number, y: number, text: string, color: string): void {
+  float(x: number, y: number, text: string, color: string, size = 18, life = 0.85): void {
     this.floaters.push({
       x,
       y,
       text,
-      life: 0.85,
-      maxLife: 0.85,
+      life,
+      maxLife: life,
       color,
+      size,
     });
   }
 
   miss(): void {
-    this.flash = 0.55;
-    this.shake = 7;
+    this.flash = 1;
+    this.shake = 12;
   }
 
   update(dt: number): void {
-    this.flash = Math.max(0, this.flash - dt * 1.6);
-    this.shake = Math.max(0, this.shake - dt * 22);
+    this.flash = Math.max(0, this.flash - dt * 1.15);
+    this.shake = Math.max(0, this.shake - dt * 18);
 
     const nextParticles: Particle[] = [];
     for (const p of this.particles) {

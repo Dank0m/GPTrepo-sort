@@ -166,7 +166,7 @@ export class World {
     if (held.type !== slot.type) {
       this.setFeedback(slot.type, "wrong");
       this.fx.burst(held.x, held.y, COLORS.dropBad, 10);
-      this.fx.float(slot.x + slot.width / 2, slot.y, "Мимо", COLORS.dropBad);
+      this.fx.float(slot.x + slot.width / 2, slot.y + slot.height * 0.35, "Мимо", COLORS.dropBad, 28, 1.1);
       this.removeItem(held);
       this.applyMiss();
       return;
@@ -347,7 +347,7 @@ export class World {
       item.y = centerY;
       if (item.x >= endX) {
         this.setFeedback(null, "overflow");
-        this.fx.float(belt.x + belt.width - 24, belt.y, "Уехал", COLORS.dropBad);
+        this.fx.float(belt.x + belt.width - 40, belt.y + belt.height / 2, "Уехал", COLORS.dropBad, 26, 1.1);
         this.applyMiss();
         continue;
       }

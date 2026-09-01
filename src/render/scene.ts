@@ -27,15 +27,16 @@ export function drawScene(
   drawBelt(ctx, layout.belt, world.elapsed, beltSpeed(world.levels));
   drawBins(ctx, layout.bins, world);
   drawItems(ctx, world.items);
-  drawFx(ctx, world);
+  drawParticles(ctx, world);
   ctx.restore();
 
   drawShop(ctx, world);
   drawHud(ctx, world);
   drawHint(ctx, world);
+  drawFloaters(ctx, world);
 
   if (world.fx.flash > 0) {
-    ctx.fillStyle = `rgba(232, 93, 76, ${world.fx.flash * 0.28})`;
+    ctx.fillStyle = `rgba(232, 93, 76, ${world.fx.flash * 0.42})`;
     ctx.fillRect(0, 0, w, h);
   }
 
@@ -188,7 +189,7 @@ function drawItems(ctx: CanvasRenderingContext2D, items: Item[]): void {
   }
 }
 
-function drawFx(ctx: CanvasRenderingContext2D, world: World): void {
+function drawParticles(ctx: CanvasRenderingContext2D, world: World): void {
   for (const p of world.fx.particles) {
     const alpha = Math.max(0, p.life / p.maxLife);
     ctx.globalAlpha = alpha;
@@ -198,17 +199,24 @@ function drawFx(ctx: CanvasRenderingContext2D, world: World): void {
     ctx.fill();
   }
   ctx.globalAlpha = 1;
+}
 
+function drawFloaters(ctx: CanvasRenderingContext2D, world: World): void {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   for (const f of world.fx.floaters) {
     const t = f.life / f.maxLife;
-    ctx.globalAlpha = t;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, t * 1.2);
+    ctx.fillStyle = "#12141a";
+    ctx.font = `800 ${f.size}px ui-rounded, system-ui, sans-serif`;
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = "#12141a";
+    ctx.strokeText(f.text, f.x, f.y);
     ctx.fillStyle = f.color;
-    ctx.font = "800 18px ui-rounded, system-ui, sans-serif";
     ctx.fillText(f.text, f.x, f.y);
+    ctx.restore();
   }
-  ctx.globalAlpha = 1;
 }
 
 function drawTypeShape(
