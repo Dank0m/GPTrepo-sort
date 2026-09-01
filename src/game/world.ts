@@ -1,4 +1,5 @@
 import {
+  AUTO_SORT,
   BIN_CAPACITY,
   COLORS,
   ECONOMY,
@@ -81,6 +82,7 @@ export class World {
   update(dt: number): void {
     this.elapsed += dt;
     this.fx.update(dt);
+    this.updateFlights(dt);
     if (this.feedback && this.elapsed >= this.feedback.until) {
       this.feedback = null;
     }
@@ -252,21 +254,6 @@ export class World {
     this.bins = next;
   }
 
-  private acceptItem(item: Item, bin: Bin): void {
-    const slot = this.layout.bins.find((entry) => entry.type === bin.type);
-    bin.filled += 1;
-    item.state = ITEM_STATE.InBin;
-    this.removeItem(item);
-    this.applyCorrect();
-    this.setFeedback(bin.type, "correct");
-    this.sortedCount += 1;
-    const cx = slot ? slot.x + slot.width / 2 : item.x;
-    const cy = slot ? slot.y + slot.height * 0.35 : item.y;
-    this.fx.burst(cx, cy, COLORS.item[bin.type]);
-    this.fx.float(cx, cy - 8, `+${this.lastGain}`, COLORS.gold);
-    sfx.play("ok", this.combo);
-  }
-
   private applyCorrect(): void {
     this.combo += 1;
     if (this.combo > this.maxCombo) {
@@ -321,6 +308,13 @@ export class World {
       if (item.state === ITEM_STATE.OnBelt) {
         item.y = centerY;
       }
+      if (item.state === ITEM_STATE.Flying && item.fly) {
+        const slot = this.layout.bins.find((entry) => entry.type === item.type);
+        if (slot) {
+          item.fly.toX = slot.x + slot.width / 2;
+          item.fly.toY = slot.y + slot.height * 0.38;
+        }
+      }
     }
   }
 
@@ -332,7 +326,7 @@ export class World {
     const kept: Item[] = [];
 
     for (const item of this.items) {
-      if (item.state === ITEM_STATE.InHand) {
+      if (item.state === ITEM_STATE.InHand || item.state === ITEM_STATE.Flying) {
         kept.push(item);
         continue;
       }
@@ -375,7 +369,77 @@ export class World {
     if (!bin || bin.filled >= bin.capacity) {
       return;
     }
-    this.acceptItem(candidate, bin);
+    this.beginAutoSort(candidate, bin);
+  }
+
+  private beginAutoSort(item: Item, bin: Bin): void {
+    const slot = this.layout.bins.find((entry) => entry.type === bin.type);
+    if (!slot) {
+      return;
+    }
+    bin.filled += 1;
+    item.state = ITEM_STATE.Flying;
+    item.fly = {
+      fromX: item.x,
+      fromY: item.y,
+      toX: slot.x + slot.width / 2,
+      toY: slot.y + slot.height * 0.38,
+      t: 0,
+      duration: AUTO_SORT.flySeconds,
+    };
+  }
+
+  private updateFlights(dt: number): void {
+    const finished: Item[] = [];
+    for (const item of this.items) {
+      if (item.state !== ITEM_STATE.Flying || !item.fly) {
+        continue;
+      }
+      item.fly.t += dt / item.fly.duration;
+      const u = Math.min(1, item.fly.t);
+      const ease = 1 - (1 - u) ** 3;
+      const hop = Math.sin(ease * Math.PI) * AUTO_SORT.hop;
+      item.x = item.fly.fromX + (item.fly.toX - item.fly.fromX) * ease;
+      item.y = item.fly.fromY + (item.fly.toY - item.fly.fromY) * ease - hop;
+      if (u >= 1) {
+        finished.push(item);
+      }
+    }
+    for (const item of finished) {
+      this.finishAutoSort(item);
+    }
+  }
+
+  private finishAutoSort(item: Item): void {
+    const bin = this.bins.find((entry) => entry.type === item.type);
+    item.fly = null;
+    if (!bin || this.status !== "playing") {
+      this.removeItem(item);
+      return;
+    }
+    this.completeSort(item, bin, false);
+  }
+
+  private acceptItem(item: Item, bin: Bin): void {
+    bin.filled += 1;
+    this.completeSort(item, bin, true);
+  }
+
+  private completeSort(item: Item, bin: Bin, fromHand: boolean): void {
+    const slot = this.layout.bins.find((entry) => entry.type === bin.type);
+    item.state = ITEM_STATE.InBin;
+    this.removeItem(item);
+    if (this.status !== "playing") {
+      return;
+    }
+    this.applyCorrect();
+    this.setFeedback(bin.type, "correct");
+    this.sortedCount += 1;
+    const cx = slot ? slot.x + slot.width / 2 : item.x;
+    const cy = slot ? slot.y + slot.height * 0.35 : item.y;
+    this.fx.burst(cx, cy, COLORS.item[bin.type], fromHand ? 14 : 18);
+    this.fx.float(cx, cy - 8, `+${this.lastGain}`, COLORS.gold);
+    sfx.play("ok", this.combo);
   }
 
   private canSpawn(): boolean {

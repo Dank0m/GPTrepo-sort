@@ -1,5 +1,14 @@
 import { ITEM_STATE, type ItemState, type ItemType } from "../config.ts";
 
+export type ItemFly = {
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+  t: number;
+  duration: number;
+};
+
 export type Item = {
   id: number;
   type: ItemType;
@@ -7,6 +16,7 @@ export type Item = {
   x: number;
   y: number;
   size: number;
+  fly: ItemFly | null;
 };
 
 let nextItemId = 1;
@@ -26,5 +36,6 @@ export function createItem(
     x,
     y,
     size,
+    fly: null,
   };
 }

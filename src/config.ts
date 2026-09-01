@@ -19,6 +19,7 @@ export const ITEM_STATE = {
   OnBelt: "onBelt",
   InHand: "inHand",
   InBin: "inBin",
+  Flying: "flying",
 } as const;
 export type ItemState = (typeof ITEM_STATE)[keyof typeof ITEM_STATE];
 
@@ -37,6 +38,13 @@ export const INPUT = {
   /** Lift the grabbed item above the pointer so a finger does not cover it. */
   dragLift: 34,
   feedbackSeconds: 0.4,
+} as const;
+
+export const AUTO_SORT = {
+  /** Seconds for an auto-sorted item to fly into its bin. */
+  flySeconds: 0.45,
+  /** Arc height in CSS pixels. */
+  hop: 42,
 } as const;
 
 export const ECONOMY = {

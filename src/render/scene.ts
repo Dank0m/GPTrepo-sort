@@ -111,6 +111,9 @@ function drawBins(
     const filled = bin?.filled ?? 0;
     const capacity = bin?.capacity ?? slot.capacity;
     const color = COLORS.item[slot.type];
+    const autoLanding = world.items.some(
+      (item) => item.state === ITEM_STATE.Flying && item.type === slot.type,
+    );
     const hovering = world.hoverBinType === slot.type;
     const held = world.grabbed;
     const matchHover = hovering && held !== null && held.type === slot.type;
@@ -138,6 +141,11 @@ function drawBins(
       ctx.globalAlpha = 0.28;
       ctx.fill();
       ctx.globalAlpha = 1;
+    } else if (autoLanding) {
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.22;
+      ctx.fill();
+      ctx.globalAlpha = 1;
     } else if (hovering && held) {
       ctx.fillStyle = matchHover ? COLORS.dropOk : COLORS.dropBad;
       ctx.globalAlpha = 0.18;
@@ -146,12 +154,12 @@ function drawBins(
     }
 
     ctx.strokeStyle =
-      feedback?.kind === "correct" || matchHover
+      feedback?.kind === "correct" || matchHover || autoLanding
         ? COLORS.dropOk
         : feedback || (hovering && held)
           ? COLORS.dropBad
           : color;
-    ctx.lineWidth = hovering || feedback ? 5 : 3;
+    ctx.lineWidth = hovering || feedback || autoLanding ? 5 : 3;
     ctx.stroke();
 
     const iconX = slot.x + slot.width / 2;
@@ -172,12 +180,27 @@ function drawBins(
 
 function drawItems(ctx: CanvasRenderingContext2D, items: Item[]): void {
   const held: Item[] = [];
+  const flying: Item[] = [];
   for (const item of items) {
     if (item.state === ITEM_STATE.InHand) {
       held.push(item);
       continue;
     }
+    if (item.state === ITEM_STATE.Flying) {
+      flying.push(item);
+      continue;
+    }
     drawTypeShape(ctx, item.type, item.x, item.y, item.size * 0.5);
+  }
+  for (const item of flying) {
+    const u = item.fly ? Math.min(1, item.fly.t) : 0;
+    const scale = 0.58 - 0.12 * u;
+    ctx.save();
+    ctx.shadowColor = COLORS.item[item.type];
+    ctx.shadowBlur = 18;
+    ctx.globalAlpha = 1 - 0.15 * u;
+    drawTypeShape(ctx, item.type, item.x, item.y, item.size * scale);
+    ctx.restore();
   }
   for (const item of held) {
     ctx.save();
