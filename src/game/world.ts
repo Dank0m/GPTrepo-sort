@@ -426,7 +426,7 @@ export class World {
       return;
     }
     this.autoTimer = 0;
-    const candidate = this.items.find((item) => item.state === ITEM_STATE.OnBelt);
+    const candidate = this.rightmostSortable();
     if (!candidate) {
       return;
     }
@@ -435,6 +435,24 @@ export class World {
       return;
     }
     this.beginAutoSort(candidate, bin);
+  }
+
+  /** Closest to the belt exit (right). Ignores grab/fly; uses live X after the player moves items. */
+  private rightmostSortable(): Item | null {
+    let best: Item | null = null;
+    for (const item of this.items) {
+      if (item.state !== ITEM_STATE.OnBelt) {
+        continue;
+      }
+      const bin = this.bins.find((entry) => entry.type === item.type);
+      if (!bin || bin.filled >= bin.capacity) {
+        continue;
+      }
+      if (!best || item.x > best.x) {
+        best = item;
+      }
+    }
+    return best;
   }
 
   private beginAutoSort(item: Item, bin: Bin): void {

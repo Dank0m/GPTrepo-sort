@@ -22,7 +22,15 @@ export function drawHud(ctx: CanvasRenderingContext2D, world: World): void {
   ctx.textAlign = "left";
   ctx.fillStyle = COLORS.gold;
   ctx.font = `700 ${narrow ? 16 : 18}px ui-rounded, system-ui, sans-serif`;
-  ctx.fillText(narrow ? `${world.coins}` : `Монеты  ${world.coins}`, hud.x + pad, cy);
+  ctx.fillText(narrow ? `${world.coins}` : `Монеты  ${world.coins}`, hud.x + pad, hud.y + hud.height * 0.38);
+
+  ctx.fillStyle = COLORS.muted;
+  ctx.font = `600 ${narrow ? 11 : 12}px ui-rounded, system-ui, sans-serif`;
+  ctx.fillText(
+    narrow ? `рек. ${world.records.bestCoins}` : `Рекорд  ${world.records.bestCoins}`,
+    hud.x + pad,
+    hud.y + hud.height * 0.72,
+  );
 
   ctx.textAlign = "center";
   ctx.fillStyle = world.combo > 0 ? COLORS.title : COLORS.muted;
