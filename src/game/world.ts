@@ -1,4 +1,5 @@
 import {
+  ADS,
   AUTO_SORT,
   BIN_CAPACITY,
   COLORS,
@@ -10,12 +11,15 @@ import {
   type UpgradeId,
 } from "../config.ts";
 import { sfx } from "../audio/sfx.ts";
-import { loadRecords, saveRecords, type Records } from "./save.ts";
+import { type Records } from "./save.ts";
 import { createBin, type Bin } from "./bin.ts";
 import { Fx } from "./fx.ts";
 import { hitBin, hitItem, pointInRect } from "./hit.ts";
 import { createItem, type Item } from "./item.ts";
+import { dumpOfferUi as makeDumpOfferUi, gameOverUi as makeGameOverUi, hitRect, type DumpOfferUi, type GameOverUi } from "./adLayout.ts";
 import { computeLayout, type PlayfieldLayout } from "./layout.ts";
+import { adService, type AdHost } from "../services/AdService.ts";
+import { yandexService } from "../services/YandexService.ts";
 import {
   activeTypes,
   autoInterval,
@@ -42,7 +46,12 @@ export type ShopPulse = {
   until: number;
 };
 
-export class World {
+export type DumpOffer = {
+  bonus: number;
+  remaining: number;
+};
+
+export class World implements AdHost {
   items: Item[] = [];
   bins: Bin[] = [];
   layout: PlayfieldLayout;
@@ -50,6 +59,7 @@ export class World {
   grabbed: Item | null = null;
   hoverBinType: ItemType | null = null;
   hoverUpgrade: UpgradeId | null = null;
+  hoverFreeCoins = false;
   feedback: DropFeedback | null = null;
   lastDrop: DropKind | "none" = "none";
   coins = 0;
@@ -64,23 +74,34 @@ export class World {
   shopPulse: ShopPulse | null = null;
   sortedCount = 0;
   paused = false;
-  records: Records = loadRecords();
+  records: Records;
   beatBestCoins = false;
   beatBestCombo = false;
+  adsPlaying = false;
+  continueUsedThisSession = false;
+  dumpOffer: DumpOffer | null = null;
   private spawnTimer = 0;
   private autoTimer = 0;
 
-  constructor(width: number, height: number) {
-    this.layout = computeLayout(width, height, activeTypes(this.levels));
+  constructor(width: number, height: number, records: Records) {
+    this.records = records;
+    this.layout = computeLayout(width, height, activeTypes(this.levels), {
+      freeCoins: adService.available,
+    });
     this.resetSession();
   }
 
   restart(): void {
+    if (this.status === "over") {
+      this.records.gamesPlayed += 1;
+      this.persistRecords();
+    }
     this.resetSession();
+    yandexService.gameplayStart();
   }
 
   pause(): void {
-    if (this.paused || this.status !== "playing") {
+    if (this.adsPlaying || this.dumpOffer || this.paused || this.status !== "playing") {
       return;
     }
     this.paused = true;
@@ -90,6 +111,7 @@ export class World {
       this.hoverBinType = null;
     }
     sfx.hush();
+    yandexService.gameplayStop();
   }
 
   resume(): void {
@@ -98,6 +120,9 @@ export class World {
     }
     this.paused = false;
     sfx.unlock();
+    if (this.status === "playing" && !this.adsPlaying) {
+      yandexService.gameplayStart();
+    }
   }
 
   togglePause(): void {
@@ -109,12 +134,67 @@ export class World {
   }
 
   resize(width: number, height: number): void {
-    this.layout = computeLayout(width, height, activeTypes(this.levels));
+    this.layout = computeLayout(width, height, activeTypes(this.levels), {
+      freeCoins: adService.available,
+    });
     this.snapBeltItems();
   }
 
+  beginAd(): void {
+    this.adsPlaying = true;
+    if (this.grabbed) {
+      this.returnToBelt(this.grabbed);
+      this.grabbed = null;
+      this.hoverBinType = null;
+    }
+  }
+
+  endAd(): void {
+    this.adsPlaying = false;
+  }
+
+  isPlayable(): boolean {
+    return this.status === "playing" && !this.paused && !this.adsPlaying;
+  }
+
+  showContinue(): boolean {
+    return this.status === "over" && !this.continueUsedThisSession && adService.canShow("continue");
+  }
+
+  showFreeCoins(): boolean {
+    return adService.available;
+  }
+
+  freeCoinsReady(): boolean {
+    return (
+      this.status === "playing" &&
+      !this.paused &&
+      !this.dumpOffer &&
+      !this.adsPlaying &&
+      adService.canShow("freeCoins")
+    );
+  }
+
+  freeCoinsCooldown(): number {
+    return adService.cooldownLeft();
+  }
+
+  gameOverUi(width: number, height: number): GameOverUi {
+    return makeGameOverUi(width, height, {
+      continue: this.showContinue(),
+      record: this.beatBestCoins || this.beatBestCombo,
+    });
+  }
+
+  dumpOfferUi(width: number, height: number): DumpOfferUi | null {
+    if (!this.dumpOffer || this.adsPlaying) {
+      return null;
+    }
+    return makeDumpOfferUi(width, height);
+  }
+
   update(dt: number): void {
-    if (this.paused) {
+    if (this.adsPlaying) {
       return;
     }
     this.elapsed += dt;
@@ -125,6 +205,16 @@ export class World {
     }
     if (this.shopPulse && this.elapsed >= this.shopPulse.until) {
       this.shopPulse = null;
+    }
+    if (this.paused) {
+      return;
+    }
+    if (this.dumpOffer) {
+      this.dumpOffer.remaining -= dt;
+      if (this.dumpOffer.remaining <= 0) {
+        this.dumpOffer = null;
+      }
+      return;
     }
     if (this.status !== "playing") {
       return;
@@ -139,19 +229,42 @@ export class World {
   }
 
   pointerDown(x: number, y: number): boolean {
+    if (this.adsPlaying) {
+      return false;
+    }
     if (pointInRect(x, y, this.layout.mute)) {
       sfx.toggle();
-      if (!this.paused && !sfx.muted) {
+      if (!this.paused && !sfx.muted && this.status === "playing") {
         sfx.unlock();
       }
       return false;
     }
-    if (pointInRect(x, y, this.layout.pause)) {
+    if (pointInRect(x, y, this.layout.pause) && this.status === "playing" && !this.dumpOffer) {
       this.togglePause();
       return false;
     }
     if (this.status === "over") {
+      const ui = this.gameOverUi(this.layout.width, this.layout.height);
+      if (hitRect(x, y, ui.continueBtn)) {
+        void this.watchContinue();
+        return false;
+      }
+      if (this.showContinue() && !hitRect(x, y, ui.restartBtn)) {
+        return false;
+      }
       this.restart();
+      return false;
+    }
+    if (this.dumpOffer) {
+      const ui = this.dumpOfferUi(this.layout.width, this.layout.height);
+      if (hitRect(x, y, ui?.doubleBtn)) {
+        void this.watchDumpDouble();
+        return false;
+      }
+      if (hitRect(x, y, ui?.dismissBtn)) {
+        this.dumpOffer = null;
+        return false;
+      }
       return false;
     }
     if (this.paused) {
@@ -159,6 +272,14 @@ export class World {
       return false;
     }
     sfx.unlock();
+    if (this.layout.freeCoins && pointInRect(x, y, this.layout.freeCoins)) {
+      if (this.freeCoinsReady()) {
+        void this.watchFreeCoins();
+      } else {
+        sfx.play("reject");
+      }
+      return false;
+    }
     const upgrade = this.hitUpgrade(x, y);
     if (upgrade) {
       this.tryBuy(upgrade);
@@ -181,7 +302,8 @@ export class World {
 
   pointerMove(x: number, y: number): void {
     this.hoverUpgrade = this.hitUpgrade(x, y) ?? null;
-    if (!this.grabbed || this.status !== "playing" || this.paused) {
+    this.hoverFreeCoins = Boolean(this.layout.freeCoins && pointInRect(x, y, this.layout.freeCoins));
+    if (!this.grabbed || this.status !== "playing" || this.paused || this.dumpOffer || this.adsPlaying) {
       return;
     }
     this.placeGrabbed(this.grabbed, x, y);
@@ -253,7 +375,9 @@ export class World {
     this.levels[id] += 1;
     this.shopPulse = { id, kind: "buy", until: this.elapsed + 0.35 };
     this.syncBins();
-    this.layout = computeLayout(this.layout.width, this.layout.height, activeTypes(this.levels));
+    this.layout = computeLayout(this.layout.width, this.layout.height, activeTypes(this.levels), {
+      freeCoins: adService.available,
+    });
     this.snapBeltItems();
     sfx.play("buy");
     return true;
@@ -273,10 +397,13 @@ export class World {
     this.items = [];
     this.bins = [];
     this.syncBins();
-    this.layout = computeLayout(this.layout.width, this.layout.height, activeTypes(this.levels));
+    this.layout = computeLayout(this.layout.width, this.layout.height, activeTypes(this.levels), {
+      freeCoins: adService.available,
+    });
     this.grabbed = null;
     this.hoverBinType = null;
     this.hoverUpgrade = null;
+    this.hoverFreeCoins = false;
     this.feedback = null;
     this.lastDrop = "none";
     this.coins = 0;
@@ -291,6 +418,9 @@ export class World {
     this.shopPulse = null;
     this.sortedCount = 0;
     this.paused = false;
+    this.adsPlaying = false;
+    this.continueUsedThisSession = false;
+    this.dumpOffer = null;
     this.beatBestCoins = false;
     this.beatBestCombo = false;
     this.fx.clear();
@@ -323,7 +453,9 @@ export class World {
       this.lives = 0;
       this.status = "over";
       this.grabbed = null;
+      this.dumpOffer = null;
       this.commitRecords();
+      yandexService.gameplayStop();
       sfx.play("over");
     } else {
       sfx.play("bad");
@@ -331,7 +463,6 @@ export class World {
   }
 
   private commitRecords(): void {
-    this.records.gamesPlayed += 1;
     this.beatBestCoins = this.coins > this.records.bestCoins;
     this.beatBestCombo = this.maxCombo > this.records.bestCombo;
     if (this.beatBestCoins) {
@@ -340,7 +471,63 @@ export class World {
     if (this.beatBestCombo) {
       this.records.bestCombo = this.maxCombo;
     }
-    saveRecords(this.records);
+    this.persistRecords();
+  }
+
+  private persistRecords(): void {
+    void yandexService.saveGame(this.records);
+  }
+
+  private grantBonus(amount: number): void {
+    this.coins += amount;
+    this.lastGain = amount;
+    this.fx.float(this.layout.width / 2, this.layout.belt.y - 8, `+${amount}`, COLORS.gold, 32, 1.2);
+    sfx.play("buy");
+  }
+
+  private continueWithLife(): void {
+    this.lives = 1;
+    this.status = "playing";
+    this.continueUsedThisSession = true;
+    this.paused = false;
+    this.adsPlaying = false;
+    sfx.unlock();
+    yandexService.gameplayStart();
+  }
+
+  private async watchContinue(): Promise<void> {
+    if (!this.showContinue()) {
+      return;
+    }
+    const result = await adService.show("continue", this);
+    if (result === "rewarded") {
+      this.continueWithLife();
+      this.persistRecords();
+    }
+  }
+
+  private async watchDumpDouble(): Promise<void> {
+    const bonus = this.dumpOffer?.bonus ?? 0;
+    if (!this.dumpOffer || bonus <= 0) {
+      return;
+    }
+    this.dumpOffer = null;
+    const result = await adService.show("dumpDouble", this);
+    if (result === "rewarded") {
+      this.grantBonus(bonus);
+      this.persistRecords();
+    }
+  }
+
+  private async watchFreeCoins(): Promise<void> {
+    if (!this.freeCoinsReady()) {
+      return;
+    }
+    const result = await adService.show("freeCoins", this);
+    if (result === "rewarded") {
+      this.grantBonus(ADS.freeCoins);
+      this.persistRecords();
+    }
   }
 
   private setFeedback(binType: ItemType | null, kind: DropKind): void {
@@ -556,6 +743,9 @@ export class World {
     );
     this.fx.float(this.layout.width / 2, this.layout.belt.y + this.layout.belt.height + 8, `+${bonus}`, COLORS.gold, 36, 1.4);
     sfx.play("dump");
+    if (adService.available) {
+      this.dumpOffer = { bonus, remaining: ADS.dumpOfferSeconds };
+    }
   }
 
   private canSpawn(): boolean {

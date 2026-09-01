@@ -26,6 +26,7 @@ export type PlayfieldLayout = {
   bins: BinLayout[];
   shop: Rect;
   shopButtons: ShopButtonLayout[];
+  freeCoins: Rect | null;
   itemSize: number;
   narrow: boolean;
 };
@@ -38,6 +39,7 @@ export function computeLayout(
   width: number,
   height: number,
   types: readonly ItemType[],
+  options: { freeCoins?: boolean } = {},
 ): PlayfieldLayout {
   const pad = clamp(Math.min(width, height) * 0.04, 10, 28);
   const narrow = width < 560;
@@ -112,7 +114,7 @@ export function computeLayout(
     };
   });
 
-  const shopButtons = layoutShopButtons(shop, shopRows);
+  const shopButtons = layoutShopButtons(shop, shopRows, Boolean(options.freeCoins));
 
   return {
     width,
@@ -123,32 +125,59 @@ export function computeLayout(
     belt,
     bins,
     shop,
-    shopButtons,
+    shopButtons: shopButtons.upgrades,
+    freeCoins: shopButtons.freeCoins,
     itemSize: clamp(beltHeight * 0.58, 34, 64),
     narrow,
   };
 }
 
-function layoutShopButtons(shop: Rect, rows: number): ShopButtonLayout[] {
+function layoutShopButtons(
+  shop: Rect,
+  rows: number,
+  showFreeCoins: boolean,
+): { upgrades: ShopButtonLayout[]; freeCoins: Rect | null } {
   const gap = 8;
   if (rows === 1) {
-    const buttonW = (shop.width - gap * (UPGRADE_IDS.length - 1)) / UPGRADE_IDS.length;
-    return UPGRADE_IDS.map((id, index) => ({
+    const count = UPGRADE_IDS.length + (showFreeCoins ? 1 : 0);
+    const buttonW = (shop.width - gap * (count - 1)) / count;
+    const upgrades = UPGRADE_IDS.map((id, index) => ({
       id,
       x: shop.x + index * (buttonW + gap),
       y: shop.y,
       width: buttonW,
       height: shop.height,
     }));
+    const freeCoins = showFreeCoins
+      ? {
+          x: shop.x + UPGRADE_IDS.length * (buttonW + gap),
+          y: shop.y,
+          width: buttonW,
+          height: shop.height,
+        }
+      : null;
+    return { upgrades, freeCoins };
   }
 
   const rowH = (shop.height - gap) / 2;
   const top = UPGRADE_IDS.slice(0, 3);
   const bottom = UPGRADE_IDS.slice(3);
-  return [
+  const upgrades = [
     ...rowOf(top, shop.x, shop.y, shop.width, rowH, gap),
-    ...rowOf(bottom, shop.x, shop.y + rowH + gap, shop.width, rowH, gap),
+    ...rowOf(bottom, shop.x, shop.y + rowH + gap, shop.width, rowH, gap, showFreeCoins ? 1 : 0),
   ];
+  let freeCoins: Rect | null = null;
+  if (showFreeCoins) {
+    const slots = bottom.length + 1;
+    const buttonW = (shop.width - gap * (slots - 1)) / slots;
+    freeCoins = {
+      x: shop.x + bottom.length * (buttonW + gap),
+      y: shop.y + rowH + gap,
+      width: buttonW,
+      height: rowH,
+    };
+  }
+  return { upgrades, freeCoins };
 }
 
 function rowOf(
@@ -158,8 +187,10 @@ function rowOf(
   width: number,
   height: number,
   gap: number,
+  extraSlots = 0,
 ): ShopButtonLayout[] {
-  const buttonW = (width - gap * (ids.length - 1)) / ids.length;
+  const slots = ids.length + extraSlots;
+  const buttonW = (width - gap * (slots - 1)) / slots;
   return ids.map((id, index) => ({
     id,
     x: x + index * (buttonW + gap),

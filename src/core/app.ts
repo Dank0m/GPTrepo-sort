@@ -4,15 +4,16 @@ import { canvasPoint } from "./pointer.ts";
 import { World } from "../game/world.ts";
 import { drawScene } from "../render/scene.ts";
 import { shopCursor } from "../render/shop.ts";
+import type { Records } from "../game/save.ts";
 
 export class App {
   private readonly surface: CanvasSurface;
   private readonly loop: GameLoop;
   private readonly world: World;
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, records: Records) {
     this.surface = new CanvasSurface(canvas);
-    this.world = new World(window.innerWidth, window.innerHeight);
+    this.world = new World(window.innerWidth, window.innerHeight, records);
     this.loop = new GameLoop({
       update: (dt) => this.update(dt),
       render: () => this.render(),

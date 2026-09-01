@@ -121,7 +121,7 @@ PHASE 0 считается завершённой, когда проект за�
 
 # 11. PHASE 7 — SDK, rewarded ads, cloud save
 
-**Код этой фазы не пишем, пока спека не согласована.** Ниже — что именно войдёт в Phase 7.
+Реализация: `src/services/YandexService.ts`, `src/services/AdService.ts`. Игровой код не импортирует `YaGames`.
 
 В конвейере нет уровней. Маппинг из типичного sort-GDD:
 

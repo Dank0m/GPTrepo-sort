@@ -71,18 +71,15 @@ export function drawHint(ctx: CanvasRenderingContext2D, world: World): void {
 }
 
 export function drawGameOver(ctx: CanvasRenderingContext2D, world: World, width: number, height: number): void {
-  if (world.status !== "over") {
+  if (world.status !== "over" || world.adsPlaying) {
     return;
   }
+  const ui = world.gameOverUi(width, height);
   ctx.save();
   ctx.fillStyle = "rgba(10, 12, 18, 0.78)";
   ctx.fillRect(0, 0, width, height);
 
-  const boxW = Math.min(360, width - 40);
-  const boxH = world.beatBestCoins || world.beatBestCombo ? 228 : 208;
-  const x = (width - boxW) / 2;
-  const y = (height - boxH) / 2;
-  roundRect(ctx, x, y, boxW, boxH, 18);
+  roundRect(ctx, ui.box.x, ui.box.y, ui.box.width, ui.box.height, 18);
   ctx.fillStyle = COLORS.panel;
   ctx.fill();
   ctx.strokeStyle = COLORS.beltEdge;
@@ -93,34 +90,39 @@ export function drawGameOver(ctx: CanvasRenderingContext2D, world: World, width:
   ctx.textBaseline = "middle";
   ctx.fillStyle = COLORS.title;
   ctx.font = "800 26px ui-rounded, system-ui, sans-serif";
-  ctx.fillText("Конец сессии", width / 2, y + 40);
+  ctx.fillText("Конец сессии", width / 2, ui.box.y + 40);
 
   if (world.beatBestCoins) {
     ctx.fillStyle = COLORS.gold;
     ctx.font = "800 16px ui-rounded, system-ui, sans-serif";
-    ctx.fillText("Новый рекорд!", width / 2, y + 70);
+    ctx.fillText("Новый рекорд!", width / 2, ui.box.y + 70);
   }
 
   ctx.fillStyle = COLORS.gold;
   ctx.font = "700 18px ui-rounded, system-ui, sans-serif";
-  ctx.fillText(`Монеты  ${world.coins}`, width / 2, y + (world.beatBestCoins ? 98 : 88));
+  ctx.fillText(`Монеты  ${world.coins}`, width / 2, ui.box.y + (world.beatBestCoins ? 98 : 88));
 
   ctx.fillStyle = COLORS.muted;
   ctx.font = "15px ui-rounded, system-ui, sans-serif";
   const comboLine = world.beatBestCombo
     ? `Макс. комбо  ×${world.maxCombo}  •  рекорд`
     : `Макс. комбо  ×${world.maxCombo}`;
-  ctx.fillText(comboLine, width / 2, y + (world.beatBestCoins ? 126 : 118));
-  ctx.fillText(`Лучший счёт  ${world.records.bestCoins}`, width / 2, y + (world.beatBestCoins ? 150 : 142));
+  ctx.fillText(comboLine, width / 2, ui.box.y + (world.beatBestCoins ? 126 : 118));
+  ctx.fillText(`Лучший счёт  ${world.records.bestCoins}`, width / 2, ui.box.y + (world.beatBestCoins ? 150 : 142));
 
-  ctx.fillStyle = COLORS.title;
-  ctx.font = "600 14px ui-rounded, system-ui, sans-serif";
-  ctx.fillText("Нажми, чтобы начать снова", width / 2, y + boxH - 32);
+  if (ui.continueBtn) {
+    drawActionButton(ctx, ui.continueBtn, COLORS.gold, "Продолжить", "Реклама → +1 жизнь");
+    drawGhostButton(ctx, ui.restartBtn, "Заново");
+  } else {
+    ctx.fillStyle = COLORS.title;
+    ctx.font = "600 14px ui-rounded, system-ui, sans-serif";
+    ctx.fillText("Нажми, чтобы начать снова", width / 2, ui.box.y + ui.box.height - 32);
+  }
   ctx.restore();
 }
 
 export function drawPause(ctx: CanvasRenderingContext2D, world: World, width: number, height: number): void {
-  if (!world.paused || world.status !== "playing") {
+  if (!world.paused || world.status !== "playing" || world.adsPlaying) {
     return;
   }
   ctx.save();
@@ -134,6 +136,54 @@ export function drawPause(ctx: CanvasRenderingContext2D, world: World, width: nu
   ctx.fillStyle = COLORS.muted;
   ctx.font = "600 15px ui-rounded, system-ui, sans-serif";
   ctx.fillText("Нажми, чтобы продолжить", width / 2, height / 2 + 18);
+  ctx.restore();
+}
+
+export function drawDumpOffer(ctx: CanvasRenderingContext2D, world: World, width: number, height: number): void {
+  const ui = world.dumpOfferUi(width, height);
+  const offer = world.dumpOffer;
+  if (!ui || !offer) {
+    return;
+  }
+  ctx.save();
+  roundRect(ctx, ui.box.x, ui.box.y, ui.box.width, ui.box.height, 16);
+  ctx.fillStyle = COLORS.panel;
+  ctx.globalAlpha = 0.96;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = COLORS.gold;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = COLORS.title;
+  ctx.font = "800 16px ui-rounded, system-ui, sans-serif";
+  ctx.fillText("Удвоить награду", width / 2, ui.box.y + 22);
+  ctx.fillStyle = COLORS.muted;
+  ctx.font = "600 12px ui-rounded, system-ui, sans-serif";
+  ctx.fillText(`${Math.ceil(offer.remaining)} с`, width / 2, ui.box.y + 42);
+
+  drawActionButton(ctx, ui.doubleBtn, COLORS.gold, "Посмотреть рекламу", `джекпот ещё раз  +${offer.bonus}`);
+  drawGhostButton(ctx, ui.dismissBtn, "Нет");
+  ctx.restore();
+}
+
+export function drawAdsOverlay(ctx: CanvasRenderingContext2D, world: World, width: number, height: number): void {
+  if (!world.adsPlaying) {
+    return;
+  }
+  ctx.save();
+  ctx.fillStyle = "rgba(10, 12, 18, 0.82)";
+  ctx.fillRect(0, 0, width, height);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = COLORS.title;
+  ctx.font = "800 28px ui-rounded, system-ui, sans-serif";
+  ctx.fillText("Реклама…", width / 2, height / 2 - 8);
+  ctx.fillStyle = COLORS.muted;
+  ctx.font = "600 14px ui-rounded, system-ui, sans-serif";
+  ctx.fillText("Награда придёт после просмотра", width / 2, height / 2 + 24);
   ctx.restore();
 }
 
@@ -205,6 +255,47 @@ function drawMute(ctx: CanvasRenderingContext2D, world: World, mute: { x: number
     ctx.arc(cx + 4, cy, 6, -0.6, 0.6);
     ctx.stroke();
   }
+}
+
+function drawActionButton(
+  ctx: CanvasRenderingContext2D,
+  rect: { x: number; y: number; width: number; height: number },
+  accent: string,
+  title: string,
+  subtitle: string,
+): void {
+  roundRect(ctx, rect.x, rect.y, rect.width, rect.height, 12);
+  ctx.fillStyle = accent;
+  ctx.globalAlpha = 0.16;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = COLORS.title;
+  ctx.font = "800 16px ui-rounded, system-ui, sans-serif";
+  ctx.fillText(title, rect.x + rect.width / 2, rect.y + rect.height * 0.36);
+  ctx.fillStyle = accent;
+  ctx.font = "600 12px ui-rounded, system-ui, sans-serif";
+  ctx.fillText(subtitle, rect.x + rect.width / 2, rect.y + rect.height * 0.7);
+}
+
+function drawGhostButton(
+  ctx: CanvasRenderingContext2D,
+  rect: { x: number; y: number; width: number; height: number },
+  label: string,
+): void {
+  roundRect(ctx, rect.x, rect.y, rect.width, rect.height, 10);
+  ctx.strokeStyle = COLORS.beltEdge;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = COLORS.title;
+  ctx.font = "600 14px ui-rounded, system-ui, sans-serif";
+  ctx.fillText(label, rect.x + rect.width / 2, rect.y + rect.height / 2);
 }
 
 function roundRect(

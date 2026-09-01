@@ -1,5 +1,12 @@
-/** Current development phase. PHASE 6: pause, records, focus. */
-export const PHASE = 6;
+/** Current development phase. PHASE 7: SDK layer, optional rewarded ads, cloud save. */
+export const PHASE = 7;
+
+export const ADS = {
+  freeCoins: 500,
+  freeCoinsCooldown: 90,
+  dumpOfferSeconds: 5,
+  mockDelayMs: 650,
+} as const;
 
 export const GAME_TITLE = "Sort & Upgrade";
 

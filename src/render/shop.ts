@@ -1,4 +1,4 @@
-import { COLORS, UPGRADES, nextUpgradeCost, type UpgradeId } from "../config.ts";
+import { ADS, COLORS, UPGRADES, nextUpgradeCost, type UpgradeId } from "../config.ts";
 import { pointInRect } from "../game/hit.ts";
 import type { World } from "../game/world.ts";
 
@@ -54,10 +54,72 @@ export function drawShop(ctx: CanvasRenderingContext2D, world: World): void {
     ctx.font = `700 ${compact ? 11 : 13}px ui-rounded, system-ui, sans-serif`;
     ctx.fillText(maxed ? "MAX" : `${cost}`, cx, button.y + button.height * (compact ? 0.76 : 0.74));
   }
+
+  drawFreeCoins(ctx, world);
+}
+
+function drawFreeCoins(ctx: CanvasRenderingContext2D, world: World): void {
+  const button = world.layout.freeCoins;
+  if (!button || !world.showFreeCoins()) {
+    return;
+  }
+  const ready = world.freeCoinsReady();
+  const wait = world.freeCoinsCooldown();
+  const hovered = world.hoverFreeCoins;
+  const compact = button.height < 64;
+
+  roundRect(ctx, button.x, button.y, button.width, button.height, 12);
+  ctx.fillStyle = COLORS.panel;
+  ctx.fill();
+  ctx.strokeStyle = ready ? COLORS.gold : hovered ? COLORS.title : COLORS.beltEdge;
+  ctx.lineWidth = hovered || ready ? 3 : 2;
+  ctx.stroke();
+
+  const cx = button.x + button.width / 2;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = COLORS.title;
+  ctx.font = `700 ${compact ? 11 : 13}px ui-rounded, system-ui, sans-serif`;
+  ctx.fillText(compact ? "Монеты" : "FREE COINS", cx, button.y + button.height * (compact ? 0.26 : 0.28));
+
+  if (wait > 0) {
+    ctx.fillStyle = COLORS.muted;
+    ctx.font = `${compact ? 10 : 11}px ui-rounded, system-ui, sans-serif`;
+    ctx.fillText(formatCooldown(wait), cx, button.y + button.height * 0.5);
+    ctx.fillStyle = COLORS.muted;
+    ctx.font = `700 ${compact ? 11 : 13}px ui-rounded, system-ui, sans-serif`;
+    ctx.fillText("жди", cx, button.y + button.height * (compact ? 0.76 : 0.74));
+    return;
+  }
+
+  ctx.fillStyle = COLORS.muted;
+  ctx.font = `${compact ? 10 : 11}px ui-rounded, system-ui, sans-serif`;
+  ctx.fillText("реклама", cx, button.y + button.height * 0.5);
+  ctx.fillStyle = ready ? COLORS.gold : COLORS.muted;
+  ctx.font = `700 ${compact ? 11 : 13}px ui-rounded, system-ui, sans-serif`;
+  ctx.fillText(`+${ADS.freeCoins}`, cx, button.y + button.height * (compact ? 0.76 : 0.74));
+}
+
+function formatCooldown(seconds: number): string {
+  const total = Math.max(0, Math.ceil(seconds));
+  const minutes = Math.floor(total / 60);
+  const rest = total % 60;
+  return `${minutes}:${rest.toString().padStart(2, "0")}`;
 }
 
 export function shopCursor(world: World, x: number, y: number): boolean {
   if (pointInRect(x, y, world.layout.mute) || pointInRect(x, y, world.layout.pause)) {
+    return true;
+  }
+  if (world.layout.freeCoins && pointInRect(x, y, world.layout.freeCoins)) {
+    return true;
+  }
+  if (world.status === "over") {
+    const ui = world.gameOverUi(world.layout.width, world.layout.height);
+    return Boolean(ui.continueBtn && pointInRect(x, y, ui.continueBtn)) || pointInRect(x, y, ui.restartBtn);
+  }
+  const dump = world.dumpOfferUi(world.layout.width, world.layout.height);
+  if (dump && (pointInRect(x, y, dump.doubleBtn) || pointInRect(x, y, dump.dismissBtn))) {
     return true;
   }
   return world.layout.shopButtons.some((button) => pointInRect(x, y, button));
