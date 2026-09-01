@@ -221,16 +221,9 @@ function drawLang(
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  const pad = 4;
-  const gap = 4;
-  const maxH = rect.height - pad * 2;
-  const maxW = (rect.width - pad * 2 - gap) / 2;
-  let flagH = maxH;
-  let flagW = flagH * 1.5;
-  if (flagW > maxW) {
-    flagW = maxW;
-    flagH = flagW * (2 / 3);
-  }
+  const gap = 6;
+  const flagH = rect.height - 6;
+  const flagW = flagH * 1.5;
   const flagY = rect.y + (rect.height - flagH) / 2;
   const ruX = rect.x + (rect.width - flagW * 2 - gap) / 2;
   const enX = ruX + flagW + gap;

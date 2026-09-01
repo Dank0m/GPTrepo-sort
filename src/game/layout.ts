@@ -65,7 +65,7 @@ export function computeLayout(
     width: muteSize,
     height: muteSize,
   };
-  const langW = narrow ? 72 : 88;
+  const langW = 104;
   const lang: Rect = {
     x: pause.x - 8 - langW,
     y: mute.y,
