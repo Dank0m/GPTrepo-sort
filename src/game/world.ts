@@ -82,6 +82,7 @@ export class World implements AdHost {
   dumpOffer: DumpOffer | null = null;
   private spawnTimer = 0;
   private autoTimer = 0;
+  private continueGrace = 0;
 
   constructor(width: number, height: number, records: Records) {
     this.records = records;
@@ -208,6 +209,9 @@ export class World implements AdHost {
     }
     if (this.paused) {
       return;
+    }
+    if (this.status === "playing" && this.continueGrace > 0) {
+      this.continueGrace = Math.max(0, this.continueGrace - dt);
     }
     if (this.dumpOffer) {
       this.dumpOffer.remaining -= dt;
@@ -420,6 +424,7 @@ export class World implements AdHost {
     this.paused = false;
     this.adsPlaying = false;
     this.continueUsedThisSession = false;
+    this.continueGrace = 0;
     this.dumpOffer = null;
     this.beatBestCoins = false;
     this.beatBestCombo = false;
@@ -491,8 +496,35 @@ export class World implements AdHost {
     this.continueUsedThisSession = true;
     this.paused = false;
     this.adsPlaying = false;
+    this.continueGrace = ADS.continueGraceSeconds;
+    this.rescueBeltAfterContinue();
+    this.fx.float(this.layout.width / 2, this.layout.belt.y - 10, "+1 жизнь", COLORS.heart, 28, 1.2);
     sfx.unlock();
     yandexService.gameplayStart();
+  }
+
+  /** Pull packed items back from the exit so Continue is not spent on the next frame. */
+  private rescueBeltAfterContinue(): void {
+    const belt = this.layout.belt;
+    const half = this.layout.itemSize * 0.5;
+    const gap = minGap(this.levels);
+    const safeEnd = belt.x + belt.width - half - 36;
+    const spawnX = belt.x + half;
+    const onBelt = this.items
+      .filter((item) => item.state === ITEM_STATE.OnBelt)
+      .sort((a, b) => b.x - a.x);
+    if (onBelt.length === 0) {
+      return;
+    }
+    let cursor = safeEnd;
+    for (const item of onBelt) {
+      item.x = Math.min(item.x, cursor);
+      if (item.x < spawnX) {
+        item.x = spawnX;
+      }
+      item.y = belt.y + belt.height / 2;
+      cursor = item.x - gap;
+    }
   }
 
   private async watchContinue(): Promise<void> {
@@ -592,6 +624,11 @@ export class World implements AdHost {
       item.x += speed * dt;
       item.y = centerY;
       if (item.x >= endX) {
+        if (this.continueGrace > 0) {
+          item.x = belt.x + belt.width - this.layout.itemSize * 0.45;
+          kept.push(item);
+          continue;
+        }
         this.setFeedback(null, "overflow");
         this.fx.float(belt.x + belt.width - 40, belt.y + belt.height / 2, "Уехал", COLORS.dropBad, 26, 1.1);
         this.applyMiss();
@@ -749,7 +786,7 @@ export class World implements AdHost {
   }
 
   private canSpawn(): boolean {
-    if (this.status !== "playing") {
+    if (this.status !== "playing" || this.continueGrace > 0) {
       return false;
     }
     if (this.spawnTimer < spawnInterval(this.levels)) {
