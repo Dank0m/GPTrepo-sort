@@ -34,6 +34,7 @@ export type Strings = {
   miss: string;
   binFull: string;
   overflow: string;
+  kept: (n: number) => string;
   types: Record<ItemType, string>;
   upgrades: Record<UpgradeId, string>;
 };
@@ -71,6 +72,7 @@ export const STRINGS: Record<Locale, Strings> = {
     miss: "Мимо",
     binFull: "Полно",
     overflow: "Уехал",
+    kept: (n) => `С собой  +${n}`,
     types: {
       red: "Квадрат",
       blue: "Круг",
@@ -119,6 +121,7 @@ export const STRINGS: Record<Locale, Strings> = {
     miss: "Miss",
     binFull: "Full",
     overflow: "Gone",
+    kept: (n) => `Kept  +${n}`,
     types: {
       red: "Square",
       blue: "Circle",

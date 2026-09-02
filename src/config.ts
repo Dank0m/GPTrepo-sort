@@ -59,6 +59,8 @@ export const AUTO_SORT = {
 export const ECONOMY = {
   coinValue: 10,
   startLives: 3,
+  /** Share of coins kept when a new session starts after game over. */
+  rebirthKeep: 0.1,
   /** Jackpot when every bin is full, then fills reset. Scales with type count. */
   dumpBonus: (typeCount: number) => 120 * typeCount * typeCount,
 } as const;
@@ -68,13 +70,13 @@ export type UpgradeId = (typeof UPGRADE_IDS)[number];
 
 export const UPGRADES: Record<
   UpgradeId,
-  { label: string; max: number; costs: readonly number[] }
+  { label: string; max: number; base: number; ratio: number }
 > = {
-  speed: { label: "Скорость", max: 4, costs: [30, 60, 120, 240] },
-  value: { label: "Ценность", max: 3, costs: [40, 80, 160] },
-  type: { label: "Тип", max: 3, costs: [80, 160, 320] },
-  auto: { label: "Автосорт", max: 3, costs: [50, 100, 200] },
-  buffer: { label: "Буфер", max: 3, costs: [25, 50, 100] },
+  speed: { label: "Скорость", max: 4, base: 30, ratio: 2.5 },
+  value: { label: "Ценность", max: 3, base: 40, ratio: 2.5 },
+  type: { label: "Тип", max: 3, base: 80, ratio: 2.5 },
+  auto: { label: "Автосорт", max: 3, base: 50, ratio: 2.5 },
+  buffer: { label: "Буфер", max: 3, base: 25, ratio: 2.5 },
 };
 
 export function nextUpgradeCost(id: UpgradeId, level: number): number | null {
@@ -82,7 +84,7 @@ export function nextUpgradeCost(id: UpgradeId, level: number): number | null {
   if (level >= def.max) {
     return null;
   }
-  return def.costs[level] ?? null;
+  return Math.max(1, Math.round(def.base * def.ratio ** level));
 }
 
 export const COLORS = {

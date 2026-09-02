@@ -92,11 +92,24 @@ export class World implements AdHost {
   }
 
   restart(): void {
+    const kept = Math.floor(this.coins * ECONOMY.rebirthKeep);
     if (this.status === "over") {
       this.records.gamesPlayed += 1;
       this.persistRecords();
     }
     this.resetSession();
+    this.coins = kept;
+    if (kept > 0) {
+      this.lastGain = kept;
+      this.fx.float(
+        this.layout.width / 2,
+        this.layout.belt.y - 10,
+        strings().kept(kept),
+        COLORS.gold,
+        28,
+        1.3,
+      );
+    }
     yandexService.gameplayStart();
   }
 
