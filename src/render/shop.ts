@@ -122,7 +122,7 @@ export function shopCursor(world: World, x: number, y: number): boolean {
   }
   if (world.status === "over") {
     const ui = world.gameOverUi(world.layout.width, world.layout.height);
-    return Boolean(ui.continueBtn && pointInRect(x, y, ui.continueBtn)) || pointInRect(x, y, ui.restartBtn);
+    return pointInRect(x, y, ui.restartBtn);
   }
   const dump = world.dumpOfferUi(world.layout.width, world.layout.height);
   if (dump && (pointInRect(x, y, dump.doubleBtn) || pointInRect(x, y, dump.dismissBtn))) {

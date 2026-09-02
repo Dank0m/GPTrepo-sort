@@ -6,9 +6,6 @@ export const ADS = {
   freeCoinsCooldown: 90,
   dumpOfferSeconds: 5,
   mockDelayMs: 650,
-  /** Continue breather in real seconds. Clock jumps longer than continueHoldMaxStep are ignored. */
-  continueHoldSeconds: 5,
-  continueHoldMaxStep: 0.05,
 } as const;
 
 export const GAME_TITLE = "Sort & Upgrade";

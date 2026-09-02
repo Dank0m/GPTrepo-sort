@@ -2,7 +2,6 @@ import type { Rect } from "./layout.ts";
 
 export type GameOverUi = {
   box: Rect;
-  continueBtn: Rect | null;
   restartBtn: Rect;
 };
 
@@ -15,42 +14,25 @@ export type DumpOfferUi = {
 export function gameOverUi(
   width: number,
   height: number,
-  opts: { continue: boolean; record: boolean },
+  opts: { record: boolean },
 ): GameOverUi {
   const boxW = Math.min(360, width - 40);
-  const boxH = opts.continue ? (opts.record ? 318 : 298) : opts.record ? 228 : 208;
+  const boxH = opts.record ? 228 : 208;
   const box: Rect = {
     x: (width - boxW) / 2,
     y: (height - boxH) / 2,
     width: boxW,
     height: boxH,
   };
-  if (!opts.continue) {
-    return {
-      box,
-      continueBtn: null,
-      restartBtn: {
-        x: box.x + 24,
-        y: box.y + boxH - 52,
-        width: boxW - 48,
-        height: 36,
-      },
-    };
-  }
-  const btnW = boxW - 48;
-  const continueBtn: Rect = {
-    x: box.x + 24,
-    y: box.y + boxH - 118,
-    width: btnW,
-    height: 52,
+  return {
+    box,
+    restartBtn: {
+      x: box.x + 24,
+      y: box.y + boxH - 52,
+      width: boxW - 48,
+      height: 36,
+    },
   };
-  const restartBtn: Rect = {
-    x: box.x + 24,
-    y: box.y + boxH - 56,
-    width: btnW,
-    height: 36,
-  };
-  return { box, continueBtn, restartBtn };
 }
 
 export function dumpOfferUi(width: number, height: number): DumpOfferUi {

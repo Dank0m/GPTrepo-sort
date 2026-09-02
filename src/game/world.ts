@@ -79,12 +79,9 @@ export class World implements AdHost {
   beatBestCoins = false;
   beatBestCombo = false;
   adsPlaying = false;
-  continueUsedThisSession = false;
   dumpOffer: DumpOffer | null = null;
   private spawnTimer = 0;
   private autoTimer = 0;
-  private continueHold = 0;
-  private continueHoldAt = 0;
 
   constructor(width: number, height: number, records: Records) {
     this.records = records;
@@ -160,21 +157,8 @@ export class World implements AdHost {
     return this.status === "playing" && !this.paused && !this.adsPlaying;
   }
 
-  showContinue(): boolean {
-    return this.status === "over" && !this.continueUsedThisSession && adService.canShow("continue");
-  }
-
   showFreeCoins(): boolean {
     return adService.available;
-  }
-
-  /** Seconds left in the Continue breathing room. Belt does not move. */
-  continueGraceLeft(): number {
-    return Math.max(0, this.continueHold);
-  }
-
-  get beltFrozen(): boolean {
-    return this.continueGraceLeft() > 0;
   }
 
   freeCoinsReady(): boolean {
@@ -193,7 +177,6 @@ export class World implements AdHost {
 
   gameOverUi(width: number, height: number): GameOverUi {
     return makeGameOverUi(width, height, {
-      continue: this.showContinue(),
       record: this.beatBestCoins || this.beatBestCombo,
     });
   }
@@ -218,16 +201,6 @@ export class World implements AdHost {
       this.shopPulse = null;
     }
     if (this.paused) {
-      return;
-    }
-    if (this.continueHold > 0) {
-      const now = performance.now();
-      const step = (now - this.continueHoldAt) / 1000;
-      this.continueHoldAt = now;
-      if (step > 0 && step <= ADS.continueHoldMaxStep) {
-        this.continueHold = Math.max(0, this.continueHold - step);
-      }
-      this.rescueBeltAfterContinue();
       return;
     }
     this.updateFlights(dt);
@@ -270,14 +243,6 @@ export class World implements AdHost {
       return false;
     }
     if (this.status === "over") {
-      const ui = this.gameOverUi(this.layout.width, this.layout.height);
-      if (hitRect(x, y, ui.continueBtn)) {
-        void this.watchContinue();
-        return false;
-      }
-      if (this.showContinue() && !hitRect(x, y, ui.restartBtn)) {
-        return false;
-      }
       this.restart();
       return false;
     }
@@ -362,10 +327,6 @@ export class World implements AdHost {
     }
 
     if (held.type !== slot.type) {
-      if (this.beltFrozen) {
-        this.returnToBelt(held);
-        return;
-      }
       this.setFeedback(slot.type, "wrong");
       this.fx.burst(held.x, held.y, COLORS.dropBad, 10);
       this.fx.float(slot.x + slot.width / 2, slot.y + slot.height * 0.35, strings().miss, COLORS.dropBad, 28, 1.1);
@@ -449,9 +410,6 @@ export class World implements AdHost {
     this.sortedCount = 0;
     this.paused = false;
     this.adsPlaying = false;
-    this.continueUsedThisSession = false;
-    this.continueHold = 0;
-    this.continueHoldAt = 0;
     this.dumpOffer = null;
     this.beatBestCoins = false;
     this.beatBestCombo = false;
@@ -477,11 +435,6 @@ export class World implements AdHost {
   }
 
   private applyMiss(): void {
-    if (this.beltFrozen) {
-      this.combo = 0;
-      this.lastGain = 0;
-      return;
-    }
     this.combo = 0;
     this.lastGain = 0;
     this.lives -= 1;
@@ -520,53 +473,6 @@ export class World implements AdHost {
     this.lastGain = amount;
     this.fx.float(this.layout.width / 2, this.layout.belt.y - 8, `+${amount}`, COLORS.gold, 32, 1.2);
     sfx.play("buy");
-  }
-
-  private continueWithLife(): void {
-    this.lives = 1;
-    this.status = "playing";
-    this.continueUsedThisSession = true;
-    this.paused = false;
-    this.adsPlaying = false;
-    this.continueHold = ADS.continueHoldSeconds;
-    this.continueHoldAt = performance.now();
-    this.rescueBeltAfterContinue();
-    this.fx.float(this.layout.width / 2, this.layout.belt.y - 10, strings().plusLife, COLORS.heart, 28, 1.2);
-    sfx.unlock();
-    yandexService.gameplayStart();
-  }
-
-  /** Pack items from the spawn side and leave the exit empty. */
-  private rescueBeltAfterContinue(): void {
-    const belt = this.layout.belt;
-    const half = this.layout.itemSize * 0.5;
-    const gap = minGap(this.levels);
-    const spawnX = belt.x + half;
-    const safeEnd = belt.x + belt.width * 0.4;
-    const onBelt = this.items
-      .filter((item) => item.state === ITEM_STATE.OnBelt)
-      .sort((a, b) => a.x - b.x);
-    let cursor = spawnX;
-    for (const item of onBelt) {
-      if (cursor <= safeEnd) {
-        item.x = cursor;
-        cursor += gap;
-      } else {
-        item.x = spawnX;
-      }
-      item.y = belt.y + belt.height / 2;
-    }
-  }
-
-  private async watchContinue(): Promise<void> {
-    if (!this.showContinue()) {
-      return;
-    }
-    const result = await adService.show("continue", this);
-    if (result === "rewarded") {
-      this.continueWithLife();
-      this.persistRecords();
-    }
   }
 
   private async watchDumpDouble(): Promise<void> {
@@ -653,10 +559,6 @@ export class World implements AdHost {
         continue;
       }
       item.y = centerY;
-      if (this.beltFrozen) {
-        kept.push(item);
-        continue;
-      }
       item.x += speed * dt;
       if (item.x >= endX) {
         this.setFeedback(null, "overflow");
@@ -816,7 +718,7 @@ export class World implements AdHost {
   }
 
   private canSpawn(): boolean {
-    if (this.status !== "playing" || this.beltFrozen) {
+    if (this.status !== "playing") {
       return false;
     }
     if (this.spawnTimer < spawnInterval(this.levels)) {

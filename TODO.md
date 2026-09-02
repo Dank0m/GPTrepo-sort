@@ -72,14 +72,14 @@
 ### Слой сервисов
 
 - [x] `src/services/YandexService.ts` — init, LoadingAPI, GameplayAPI, `showRewardedAd`, `showInterstitial` (заглушка), `saveGame` / `loadGame`, язык, пустые achievements
-- [x] `src/services/AdService.ts` — цели `continue` / `dumpDouble` / `freeCoins`, пауза + mute на ролике, лимиты сессии и кулдаун
+- [x] `src/services/AdService.ts` — цели `dumpDouble` / `freeCoins`, пауза + mute на ролике, лимиты сессии и кулдаун
 - [x] Fallback без SDK: игра как Phase 6, кнопки рекламы скрыты, наград без ролика нет
 - [x] `?mockAds=1` только для локальной отладки
 - [x] `index.html`: `<script src="/sdk.js">` (на localhost скрипт не обязан существовать)
 
 ### Rewarded (все опциональны, текст кнопки = реклама + награда)
 
-- [x] Game over: CONTINUE? → +1 жизнь, сессия жива, 1 раз за сессию
+- [x] Game over: только «Заново» (Continue за +1 жизнь убран, п. 4.5.2)
 - [x] После полного набора: DOUBLE REWARD → ещё один джекпот, 1 раз на дамп, оффер ~5 с
 - [x] FREE COINS в магазине: +500, кулдаун 90 с
 - [x] Награда только после `onRewarded`; skip / ошибка / нет SDK → без награды

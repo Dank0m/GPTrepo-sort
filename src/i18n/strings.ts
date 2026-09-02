@@ -18,13 +18,8 @@ export type Strings = {
   maxComboRecord: string;
   bestScore: string;
   tapRestart: string;
-  continue: string;
-  continueReward: string;
-  restart: string;
   pause: string;
   tapResume: string;
-  breather: (n: number) => string;
-  breatherHint: string;
   doubleTitle: string;
   secondsLeft: (n: number) => string;
   watchAd: string;
@@ -39,7 +34,6 @@ export type Strings = {
   miss: string;
   binFull: string;
   overflow: string;
-  plusLife: string;
   types: Record<ItemType, string>;
   upgrades: Record<UpgradeId, string>;
 };
@@ -61,13 +55,8 @@ export const STRINGS: Record<Locale, Strings> = {
     maxComboRecord: "рекорд",
     bestScore: "Лучший счёт",
     tapRestart: "Нажми, чтобы начать снова",
-    continue: "Продолжить",
-    continueReward: "Реклама → +1 жизнь",
-    restart: "Заново",
     pause: "Пауза",
     tapResume: "Нажми, чтобы продолжить",
-    breather: (n) => `Передышка  ${n}`,
-    breatherHint: "Лента стоит — разложи фигуры",
     doubleTitle: "Удвоить награду",
     secondsLeft: (n) => `${n} с`,
     watchAd: "Посмотреть рекламу",
@@ -82,7 +71,6 @@ export const STRINGS: Record<Locale, Strings> = {
     miss: "Мимо",
     binFull: "Полно",
     overflow: "Уехал",
-    plusLife: "+1 жизнь",
     types: {
       red: "Квадрат",
       blue: "Круг",
@@ -115,13 +103,8 @@ export const STRINGS: Record<Locale, Strings> = {
     maxComboRecord: "record",
     bestScore: "Best score",
     tapRestart: "Tap to play again",
-    continue: "Continue",
-    continueReward: "Watch ad → +1 life",
-    restart: "Restart",
     pause: "Paused",
     tapResume: "Tap to resume",
-    breather: (n) => `Breather  ${n}`,
-    breatherHint: "Belt is stopped — sort the shapes",
     doubleTitle: "Double reward",
     secondsLeft: (n) => `${n}s`,
     watchAd: "Watch ad",
@@ -136,7 +119,6 @@ export const STRINGS: Record<Locale, Strings> = {
     miss: "Miss",
     binFull: "Full",
     overflow: "Gone",
-    plusLife: "+1 life",
     types: {
       red: "Square",
       blue: "Circle",

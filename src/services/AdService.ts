@@ -2,7 +2,7 @@ import { ADS } from "../config.ts";
 import { sfx } from "../audio/sfx.ts";
 import { yandexService } from "./YandexService.ts";
 
-export type AdGoal = "continue" | "dumpDouble" | "freeCoins";
+export type AdGoal = "dumpDouble" | "freeCoins";
 export type AdShowResult = "rewarded" | "skipped" | "unavailable";
 
 export type AdHost = {

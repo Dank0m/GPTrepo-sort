@@ -114,14 +114,9 @@ export function drawGameOver(ctx: CanvasRenderingContext2D, world: World, width:
   ctx.fillText(comboLine, width / 2, ui.box.y + (world.beatBestCoins ? 126 : 118));
   ctx.fillText(`${t.bestScore}  ${world.records.bestCoins}`, width / 2, ui.box.y + (world.beatBestCoins ? 150 : 142));
 
-  if (ui.continueBtn) {
-    drawActionButton(ctx, ui.continueBtn, COLORS.gold, t.continue, t.continueReward);
-    drawGhostButton(ctx, ui.restartBtn, t.restart);
-  } else {
-    ctx.fillStyle = COLORS.title;
-    ctx.font = "600 14px ui-rounded, system-ui, sans-serif";
-    ctx.fillText(t.tapRestart, width / 2, ui.box.y + ui.box.height - 32);
-  }
+  ctx.fillStyle = COLORS.title;
+  ctx.font = "600 14px ui-rounded, system-ui, sans-serif";
+  ctx.fillText(t.tapRestart, width / 2, ui.box.y + ui.box.height - 32);
   ctx.restore();
 }
 
@@ -140,24 +135,6 @@ export function drawPause(ctx: CanvasRenderingContext2D, world: World, width: nu
   ctx.fillStyle = COLORS.muted;
   ctx.font = "600 15px ui-rounded, system-ui, sans-serif";
   ctx.fillText(strings().tapResume, width / 2, height / 2 + 18);
-  ctx.restore();
-}
-
-export function drawContinueGrace(ctx: CanvasRenderingContext2D, world: World, width: number, _height: number): void {
-  if (!world.beltFrozen || world.status !== "playing" || world.adsPlaying) {
-    return;
-  }
-  const left = world.continueGraceLeft();
-  const t = strings();
-  ctx.save();
-  ctx.textAlign = "center";
-  ctx.textBaseline = "top";
-  ctx.fillStyle = COLORS.gold;
-  ctx.font = "800 18px ui-rounded, system-ui, sans-serif";
-  ctx.fillText(t.breather(Math.ceil(left)), width / 2, world.layout.belt.y + world.layout.belt.height + 6);
-  ctx.fillStyle = COLORS.muted;
-  ctx.font = "600 13px ui-rounded, system-ui, sans-serif";
-  ctx.fillText(t.breatherHint, width / 2, world.layout.belt.y + world.layout.belt.height + 28);
   ctx.restore();
 }
 
