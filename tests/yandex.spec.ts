@@ -174,3 +174,63 @@ test("jackpot offer stops gameplay, timeout resumes it, platform pause blocks re
     status: "over",
   });
 });
+
+test("platform resume restores its own pause but preserves a manual pause", async ({ page }) => {
+  await fakeSdk(page);
+  await loaded(page);
+  await page.getByRole('button', { name: 'Начать сортировку', exact: true }).click();
+  await page.evaluate(() => (window as any).__sdkEvents.game_api_pause());
+  await page.evaluate(() => (window as any).__sdkEvents.game_api_resume());
+  expect(await page.evaluate(() => (window as any).__sdkCalls)).toEqual(['ready','start','stop','start']);
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => {
+    (window as any).__sdkEvents.game_api_pause();
+    (window as any).__sdkEvents.game_api_resume();
+  });
+  expect(await page.evaluate(() => (window as any).__sdkCalls)).toEqual(['ready','start','stop','start','stop']);
+});
+
+test("platform resume and ad close can arrive in either order without leaving gameplay paused", async ({ page }) => {
+  await fakeSdk(page);
+  await loaded(page);
+  const result = await page.evaluate(async () => {
+    const { World } = await import('/src/game/world.ts');
+    const { emptyRecords } = await import('/src/game/save.ts');
+    const { yandexService } = await import('/src/services/YandexService.ts');
+    const w = new World(800,700,emptyRecords());
+    w.resume();
+    yandexService.onPlatformPause(() => w.pauseForPlatform());
+    yandexService.onPlatformResume(() => w.resumeFromPlatform());
+    const state = window as any;
+    w.beginAd();
+    state.__sdkEvents.game_api_pause();
+    state.__sdkEvents.game_api_resume();
+    const beforeClose = w.paused;
+    w.endAd();
+    const first = w.isPlayable();
+    w.beginAd();
+    state.__sdkEvents.game_api_pause();
+    w.endAd();
+    const beforeResume = w.paused;
+    state.__sdkEvents.game_api_resume();
+    return { beforeClose,first,beforeResume,second: w.isPlayable() };
+  });
+  expect(result).toEqual({ beforeClose:true, first:true, beforeResume:true, second:true });
+});
+
+test("visibility callbacks do not consume platform resume or restart behind a menu", async ({ page }) => {
+  await fakeSdk(page);
+  await loaded(page);
+  await page.getByRole('button', { name: 'Начать сортировку', exact: true }).click();
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event('blur'));
+    (window as any).__sdkEvents.game_api_pause();
+    (window as any).__sdkEvents.game_api_resume();
+  });
+  expect(await page.evaluate(() => (window as any).__sdkCalls)).toEqual(['ready','start','stop','start']);
+  await page.evaluate(() => (window as any).__sdkEvents.game_api_pause());
+  await page.getByRole('button', { name: /Мой прогресс/ }).click();
+  await page.evaluate(() => (window as any).__sdkEvents.game_api_resume());
+  await expect(page.getByRole('dialog')).toBeVisible();
+  expect(await page.evaluate(() => (window as any).__sdkCalls)).toEqual(['ready','start','stop','start','stop']);
+});

@@ -10,7 +10,7 @@ export class ProgressPanel {
   private first = true;
   private signature = "";
 
-  constructor(private readonly world: World) {
+  constructor(private readonly world: World, private readonly canvas: HTMLCanvasElement) {
     this.button.className = "progress-strip";
     this.button.type = "button";
     this.button.addEventListener("click", () => this.open());
@@ -48,8 +48,9 @@ export class ProgressPanel {
 
   update(): void {
     const layout = this.world.layout.progress;
+    const field = this.canvas.getBoundingClientRect();
     Object.assign(this.button.style, {
-      left: `${layout.x}px`, top: `${layout.y}px`, width: `${layout.width}px`, height: `${layout.height}px`,
+      left: `${field.left + layout.x}px`, top: `${field.top + layout.y}px`, width: `${layout.width}px`, height: `${layout.height}px`,
     });
     this.button.disabled = this.world.adsPlaying;
     const progress = this.world.records.progression;
@@ -57,7 +58,8 @@ export class ProgressPanel {
     const rank = rankInfo(progress.xp);
     const missions = dailyMissions(progress);
     const next = missions.find((mission) => !mission.done);
-    const signature = JSON.stringify([progress, currentLocale(), this.first, this.world.status]);
+    const signature = JSON.stringify([progress, currentLocale(), this.first, this.world.status, this.world.restoredSession]);
+    const startText = this.world.restoredSession ? t.continueGame : t.play;
     if (signature === this.signature) return;
     this.signature = signature;
     const summary = next ? `${t.missionNames[next.id]} · ${next.current}/${next.target}` : t.allDone;
@@ -74,7 +76,7 @@ export class ProgressPanel {
     // All copy comes from the internal locale dictionary; no player/remote HTML.
     this.dialog.innerHTML = `
       <div class="progress-heading"><span class="eyebrow">SORT & UPGRADE</span><span class="level-badge">${rank.level}</span></div>
-      <h1 id="progress-title">${this.first ? t.play : t.progress}</h1>
+      <h1 id="progress-title">${this.first ? startText : t.progress}</h1>
       <p class="intro">${this.first ? t.howToPlay : t.permanentHint}</p>
       <section class="mastery-card" aria-label="${t.mastery}">
         <div class="row"><strong>${t.mastery} ${rank.level}</strong><span>${rank.current} / ${rank.needed} XP</span></div>
@@ -89,7 +91,7 @@ export class ProgressPanel {
           <small>${mission.done ? t.earned : '+' + mission.rewardXp + ' XP'} · +${mission.rewardCoins} ${t.coins.toLowerCase()}</small>
         </section>`).join('')}</div>
       <p class="daily-hint">${t.permanentHint}</p>
-      <button type="button" class="play-button">${this.first ? t.play : t.continueGame}</button>`;
+      <button type="button" class="play-button">${this.first ? startText : t.continueGame}</button>`;
     this.dialog.querySelector(".play-button")?.addEventListener("click", () => this.close());
   }
 }

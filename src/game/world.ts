@@ -11,7 +11,7 @@ import {
   type UpgradeId,
 } from "../config.ts";
 import { sfx } from "../audio/sfx.ts";
-import { saveRecords, type Records } from "./save.ts";
+import { loadSession, saveRecords, saveSession, type Records, type SessionSave } from "./save.ts";
 import { advanceProgression, rankInfo, sanitizeProgression } from "./progression.ts";
 import { createBin, type Bin } from "./bin.ts";
 import { Fx } from "./fx.ts";
@@ -77,10 +77,13 @@ export class World implements AdHost {
   sortedCount = 0;
   paused = false;
   records: Records;
+  restoredSession = false;
   beatBestCoins = false;
   beatBestCombo = false;
   adsPlaying = false;
   dumpOffer: DumpOffer | null = null;
+  private platformPausePending = false;
+  private resumeAfterPlatform = false;
   private manualCombo = 0;
   private spawnTimer = 0;
   private autoTimer = 0;
@@ -91,6 +94,8 @@ export class World implements AdHost {
       freeCoins: adService.available,
     });
     this.resetSession();
+    const session = loadSession();
+    if (session) this.restoreSession(session);
     this.paused = true;
   }
 
@@ -101,6 +106,7 @@ export class World implements AdHost {
       this.persistRecords();
     }
     this.resetSession();
+    this.restoredSession = false;
     this.coins += kept;
     if (kept > 0) {
       this.lastGain = kept;
@@ -113,6 +119,7 @@ export class World implements AdHost {
         1.3,
       );
     }
+    this.persistRecords();
     yandexService.gameplayStart();
   }
 
@@ -126,6 +133,22 @@ export class World implements AdHost {
       this.grabbed = null;
       this.hoverBinType = null;
     }
+  }
+
+  pauseForPlatform(): void {
+    if (!this.platformPausePending) {
+      this.resumeAfterPlatform = !this.paused && this.status === "playing";
+      this.platformPausePending = true;
+    }
+    this.pause();
+  }
+
+  resumeFromPlatform(allowResume = true): void {
+    if (!this.platformPausePending || this.adsPlaying || document.hidden || yandexService.platformPaused) return;
+    this.platformPausePending = false;
+    const shouldResume = this.resumeAfterPlatform;
+    this.resumeAfterPlatform = false;
+    if (shouldResume && allowResume) this.resume();
   }
 
   resume(): void {
@@ -163,6 +186,7 @@ export class World implements AdHost {
 
   endAd(): void {
     this.adsPlaying = false;
+    this.resumeFromPlatform();
   }
 
   isPlayable(): boolean {
@@ -384,6 +408,7 @@ export class World implements AdHost {
     });
     this.snapBeltItems();
     sfx.play("buy");
+    this.persistRecords();
     return true;
   }
 
@@ -424,6 +449,8 @@ export class World implements AdHost {
     this.shopPulse = null;
     this.sortedCount = 0;
     this.paused = false;
+    this.platformPausePending = false;
+    this.resumeAfterPlatform = false;
     this.adsPlaying = false;
     this.dumpOffer = null;
     this.beatBestCoins = false;
@@ -466,24 +493,57 @@ export class World implements AdHost {
       sfx.play("over");
     } else {
       sfx.play("bad");
+      this.persistRecords();
     }
   }
 
   private commitRecords(): void {
-    this.beatBestCoins = this.coins > this.records.bestCoins;
-    this.beatBestCombo = this.maxCombo > this.records.bestCombo;
-    if (this.beatBestCoins) {
-      this.records.bestCoins = this.coins;
-    }
-    if (this.beatBestCombo) {
-      this.records.bestCombo = this.maxCombo;
-    }
     this.persistRecords();
   }
 
   private persistRecords(): void {
+    if (this.coins > this.records.bestCoins) {
+      this.records.bestCoins = this.coins;
+      this.beatBestCoins = true;
+    }
+    if (this.maxCombo > this.records.bestCombo) {
+      this.records.bestCombo = this.maxCombo;
+      this.beatBestCombo = true;
+    }
     saveRecords(this.records);
+    saveSession({
+      version: 1,
+      coins: this.coins,
+      combo: this.combo,
+      maxCombo: this.maxCombo,
+      manualCombo: this.manualCombo,
+      lives: this.lives,
+      status: this.status,
+      sortedCount: this.sortedCount,
+      levels: { ...this.levels },
+      bins: Object.fromEntries(this.bins.map((bin) => [bin.type, Math.max(0, bin.filled -
+        this.items.filter((item) => item.type === bin.type && item.state === ITEM_STATE.Flying).length)])),
+      beatBestCoins: this.beatBestCoins,
+      beatBestCombo: this.beatBestCombo,
+    });
     void yandexService.saveGame(this.records);
+  }
+
+  private restoreSession(session: SessionSave): void {
+    this.coins = session.coins;
+    this.combo = session.combo;
+    this.maxCombo = session.maxCombo;
+    this.manualCombo = session.manualCombo;
+    this.lives = session.lives;
+    this.status = session.status;
+    this.sortedCount = session.sortedCount;
+    this.levels = session.levels;
+    this.beatBestCoins = session.beatBestCoins;
+    this.beatBestCombo = session.beatBestCombo;
+    this.syncBins();
+    for (const bin of this.bins) bin.filled = session.bins[bin.type] ?? 0;
+    this.resize(this.layout.width, this.layout.height);
+    this.restoredSession = true;
   }
 
   private grantBonus(amount: number): void {
@@ -706,6 +766,7 @@ export class World implements AdHost {
     if (fromHand) this.manualCombo += 1;
     this.advanceMastery({ kind: "sort", combo: this.manualCombo, manual: fromHand });
     this.tryDump();
+    this.persistRecords();
   }
 
   private tryDump(): void {
@@ -717,12 +778,12 @@ export class World implements AdHost {
     }
     const types = this.bins.length;
     const bonus = ECONOMY.dumpBonus(types);
-    this.advanceMastery({ kind: "set" });
     this.coins += bonus;
     this.lastGain = bonus;
     for (const bin of this.bins) {
       bin.filled = 0;
     }
+    this.advanceMastery({ kind: "set" });
     const hud = this.layout.hud;
     this.fx.celebrateDump(
       bonus,
@@ -743,6 +804,7 @@ export class World implements AdHost {
       this.dumpOffer = { bonus, remaining: ADS.dumpOfferSeconds };
       yandexService.gameplayStop();
     }
+    this.persistRecords();
   }
 
   private advanceMastery(event: Parameters<typeof advanceProgression>[1]): void {
@@ -753,7 +815,6 @@ export class World implements AdHost {
         reward.rankUp ? strings().rankUp : strings().missionDone,
         COLORS.gold, 22, 2);
     }
-    this.persistRecords();
   }
 
   private canSpawn(): boolean {

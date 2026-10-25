@@ -21,9 +21,9 @@ export class App {
       update: (dt) => this.update(dt),
       render: () => this.render(),
     });
-    this.progressPanel = new ProgressPanel(this.world);
-    yandexService.onPlatformPause(() => this.world.pause());
-    // Keep the game paused until an explicit player action after platform resume.
+    this.progressPanel = new ProgressPanel(this.world, canvas);
+    yandexService.onPlatformPause(() => this.world.pauseForPlatform());
+    yandexService.onPlatformResume(() => this.world.resumeFromPlatform(!this.progressPanel.isOpen));
     this.bindResize();
     this.bindPointer();
     this.bindKeys();
@@ -100,14 +100,21 @@ export class App {
 
   private bindFocus(): void {
     const onHidden = (): void => {
-      this.world.pause();
+      if (yandexService.available || this.world.adsPlaying || yandexService.platformPaused) {
+        this.world.pauseForPlatform();
+      } else {
+        this.world.pause();
+      }
     };
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) {
         onHidden();
+      } else {
+        this.world.resumeFromPlatform(!this.progressPanel.isOpen);
       }
     });
     window.addEventListener("blur", onHidden);
+    window.addEventListener("focus", () => this.world.resumeFromPlatform(!this.progressPanel.isOpen));
   }
 
   private update(dt: number): void {
