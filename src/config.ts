@@ -44,6 +44,7 @@ export const BELT = {
 export const INPUT = {
   /** Extra hit padding around an item, CSS pixels. */
   grabPadding: 14,
+  groupRadius: 110,
   /** Lift the grabbed item above the pointer so a finger does not cover it. */
   dragLift: 34,
   feedbackSeconds: 0.4,

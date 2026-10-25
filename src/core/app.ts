@@ -52,9 +52,12 @@ export class App {
     canvas.style.cursor = "grab";
     canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
+    let activePointer: number | null = null;
     canvas.addEventListener("pointerdown", (event) => {
+      if (activePointer !== null) return;
       const point = canvasPoint(canvas, event);
-      if (this.world.pointerDown(point.x, point.y)) {
+      if (this.world.pointerDown(point.x, point.y, event.button)) {
+        activePointer = event.pointerId;
         canvas.setPointerCapture(event.pointerId);
         canvas.style.cursor = "grabbing";
         event.preventDefault();
@@ -62,6 +65,7 @@ export class App {
     });
 
     canvas.addEventListener("pointermove", (event) => {
+      if (activePointer !== null && event.pointerId !== activePointer) return;
       const point = canvasPoint(canvas, event);
       this.world.pointerMove(point.x, point.y);
       if (!this.world.grabbed) {
@@ -70,6 +74,8 @@ export class App {
     });
 
     const release = (event: PointerEvent): void => {
+      if (event.pointerId !== activePointer) return;
+      activePointer = null;
       if (this.world.grabbed) {
         const point = canvasPoint(canvas, event);
         this.world.pointerUp(point.x, point.y);
@@ -78,10 +84,14 @@ export class App {
     };
 
     canvas.addEventListener("pointerup", release);
-    canvas.addEventListener("pointercancel", () => {
+    const cancel = (event: PointerEvent): void => {
+      if (event.pointerId !== activePointer) return;
+      activePointer = null;
       this.world.pointerCancel();
       canvas.style.cursor = "grab";
-    });
+    };
+    canvas.addEventListener("pointercancel", cancel);
+    canvas.addEventListener("lostpointercapture", cancel);
   }
 
   private bindKeys(): void {

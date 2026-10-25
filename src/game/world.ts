@@ -57,6 +57,7 @@ export class World implements AdHost {
   layout: PlayfieldLayout;
   elapsed = 0;
   grabbed: Item | null = null;
+  groupGrab: { x: number; y: number; entries: { item: Item; dx: number; dy: number }[] } | null = null;
   hoverBinType: ItemType | null = null;
   hoverUpgrade: UpgradeId | null = null;
   hoverFreeCoins = false;
@@ -134,11 +135,7 @@ export class World implements AdHost {
     yandexService.gameplayStop();
     if (this.paused || this.status !== "playing") return;
     this.paused = true;
-    if (this.grabbed) {
-      this.returnToBelt(this.grabbed);
-      this.grabbed = null;
-      this.hoverBinType = null;
-    }
+    this.pointerCancel();
   }
 
   pauseForPlatform(): void {
@@ -175,6 +172,7 @@ export class World implements AdHost {
   }
 
   resize(width: number, height: number): void {
+    this.pointerCancel();
     this.layout = computeLayout(width, height, activeTypes(this.levels), {
       freeCoins: adService.available,
     });
@@ -183,11 +181,7 @@ export class World implements AdHost {
 
   beginAd(): void {
     this.adsPlaying = true;
-    if (this.grabbed) {
-      this.returnToBelt(this.grabbed);
-      this.grabbed = null;
-      this.hoverBinType = null;
-    }
+    this.pointerCancel();
   }
 
   endAd(): void {
@@ -266,7 +260,9 @@ export class World implements AdHost {
     }
   }
 
-  pointerDown(x: number, y: number): boolean {
+  pointerDown(x: number, y: number, button = 0): boolean {
+    if (button === 2) return this.grabGroup(x, y);
+    if (button !== 0 || this.groupGrab) return false;
     if (this.adsPlaying || document.hidden || yandexService.platformPaused) {
       return false;
     }
@@ -338,6 +334,16 @@ export class World implements AdHost {
   pointerMove(x: number, y: number): void {
     this.hoverUpgrade = this.hitUpgrade(x, y) ?? null;
     this.hoverFreeCoins = Boolean(this.layout.freeCoins && pointInRect(x, y, this.layout.freeCoins));
+    if (this.groupGrab && this.isPlayable()) {
+      this.groupGrab.x = x;
+      this.groupGrab.y = y - INPUT.dragLift;
+      for (const entry of this.groupGrab.entries) {
+        entry.item.x = x + entry.dx;
+        entry.item.y = y - INPUT.dragLift + entry.dy;
+      }
+      this.hoverBinType = hitBin(this.layout.bins, x, y - INPUT.dragLift)?.type ?? null;
+      return;
+    }
     if (!this.grabbed || this.status !== "playing" || this.paused || this.dumpOffer || this.adsPlaying) {
       return;
     }
@@ -346,6 +352,25 @@ export class World implements AdHost {
   }
 
   pointerUp(x: number, y: number): void {
+    if (this.groupGrab) {
+      this.pointerMove(x, y);
+      const group = this.groupGrab;
+      this.groupGrab = null;
+      this.grabbed = null;
+      this.hoverBinType = null;
+      const slot = hitBin(this.layout.bins, x, y - INPUT.dragLift);
+      const bin = this.bins.find(b => b.type === slot?.type);
+      let room = bin ? bin.capacity - bin.filled : 0;
+      const returned: Item[] = [];
+      for (const { item } of group.entries) {
+        if (this.isPlayable() && bin && item.type === bin.type && room > 0) {
+          room--;
+          this.acceptItem(item, bin);
+        } else returned.push(item);
+      }
+      this.returnGroup(returned);
+      return;
+    }
     const held = this.grabbed;
     if (!held) {
       return;
@@ -390,7 +415,40 @@ export class World implements AdHost {
     this.acceptItem(held, bin);
   }
 
+  private grabGroup(x: number, y: number): boolean {
+    if (!this.isPlayable() || this.grabbed || !pointInRect(x, y, this.layout.belt)) return false;
+    const entries = this.items
+      .filter(item => item.state === ITEM_STATE.OnBelt && Math.abs(item.x - x) <= INPUT.groupRadius + item.size / 2)
+      .map(item => ({ item, dx: item.x - x, dy: item.y - y }));
+    if (!entries.length) return false;
+    sfx.unlock();
+    this.groupGrab = { x, y: y - INPUT.dragLift, entries };
+    this.grabbed = entries[0].item;
+    for (const { item } of entries) item.state = ITEM_STATE.InHand;
+    this.pointerMove(x, y);
+    return true;
+  }
+
+  private returnGroup(items: Item[]): void {
+    if (!items.length) return;
+    const belt = this.layout.belt;
+    const left = Math.min(...items.map(item => item.x - item.size / 2));
+    const right = Math.max(...items.map(item => item.x + item.size / 2));
+    const shift = Math.max(belt.x - left, Math.min(0, belt.x + belt.width - right));
+    for (const item of items) {
+      item.x += shift;
+      this.returnToBelt(item);
+    }
+  }
+
   pointerCancel(): void {
+    if (this.groupGrab) {
+      this.returnGroup(this.groupGrab.entries.map(entry => entry.item));
+      this.groupGrab = null;
+      this.grabbed = null;
+      this.hoverBinType = null;
+      return;
+    }
     if (!this.grabbed) {
       return;
     }
@@ -437,6 +495,7 @@ export class World implements AdHost {
       freeCoins: adService.available,
     });
     this.grabbed = null;
+    this.groupGrab = null;
     this.hoverBinType = null;
     this.hoverUpgrade = null;
     this.hoverFreeCoins = false;
@@ -491,6 +550,7 @@ export class World implements AdHost {
     this.fx.miss();
     if (this.lives <= 0) {
       this.lives = 0;
+      this.pointerCancel();
       this.status = "over";
       this.grabbed = null;
       this.dumpOffer = null;
@@ -851,7 +911,10 @@ export class World implements AdHost {
     // Avoid an unwinnable belt full of shapes whose bins are already full.
     const available = types.filter((type) => {
       const bin = this.bins.find((entry) => entry.type === type);
-      return bin && bin.filled < bin.capacity;
+      const waiting = this.items.filter(item => item.type === type &&
+        (item.state === ITEM_STATE.OnBelt || item.state === ITEM_STATE.InHand)).length;
+      // Flying items already reserve a slot in bin.filled.
+      return bin && bin.filled + waiting < bin.capacity;
     });
     if (!available.length) return;
     const type = available[Math.floor(Math.random() * available.length)] ?? "red";

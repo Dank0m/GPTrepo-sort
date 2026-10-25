@@ -3,6 +3,8 @@ import type { ItemType, UpgradeId } from "../config.ts";
 export type Locale = "ru" | "en";
 
 export type Strings = {
+  groupCount: (count: number) => string;
+  groupHelp: string;
   shift: (stage: number) => string;
   nextShift: (count: number) => string;
   finalShift: string;
@@ -59,6 +61,8 @@ export type Strings = {
 
 export const STRINGS: Record<Locale, Strings> = {
   ru: {
+    groupCount: (count) => `Группа: ${count}`,
+    groupHelp: "ПКМ — широкий захват: переноси несколько фигур вместе. В контейнер попадут подходящие, остальные вернутся без штрафа.",
     shift: (stage) => `Смена ${stage}`,
     nextShift: (count) => `До следующей смены: ${count} фигур`,
     finalShift: "Максимальный темп — удержи рекорд!",
@@ -126,6 +130,8 @@ export const STRINGS: Record<Locale, Strings> = {
     },
   },
   en: {
+    groupCount: (count) => `Group: ${count}`,
+    groupHelp: "Right-drag to pick up a wide group. Matching shapes enter the bin; the others return to the belt without a penalty.",
     shift: (stage) => `Shift ${stage}`,
     nextShift: (count) => `${count} shapes to the next shift`,
     finalShift: "Top pace — keep your record going!",

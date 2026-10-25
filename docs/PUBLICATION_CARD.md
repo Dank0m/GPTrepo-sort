@@ -38,7 +38,7 @@ Sort & Upgrade
 
 **Как играть**
 
-Мышью или пальцем перетаскивай фигуру с ленты в контейнер той же формы и цвета. Верная сортировка приносит монеты и увеличивает комбо. Ошибка или пропущенная фигура отнимает жизнь; полный контейнер возвращает фигуру без штрафа. Заполни все контейнеры, чтобы получить джекпот и очистить их. Монеты трать на кнопки улучшений внизу. Каждые 20 верных сортировок темп растёт автоматически. При потере трёх жизней можно начать новую партию. Кнопка мастерства открывает задания и прогресс; динамик выключает звук, значок паузы останавливает игру. На компьютере пауза также доступна по Escape или P.
+Мышью или пальцем перетаскивай фигуру с ленты в контейнер той же формы и цвета. Верная сортировка приносит монеты и увеличивает комбо. Ошибка или пропущенная фигура отнимает жизнь; полный контейнер возвращает фигуру без штрафа. Заполни все контейнеры, чтобы получить джекпот и очистить их. Монеты трать на кнопки улучшений внизу. Каждые 20 верных сортировок темп растёт автоматически. При потере трёх жизней можно начать новую партию. Кнопка мастерства открывает задания и прогресс; динамик выключает звук, значок паузы останавливает игру. На компьютере пауза также доступна по Escape или P. Зажми ПКМ на ленте, чтобы перемещать группу фигур. При сбросе в контейнер подходящие попадут внутрь, остальные вернутся на ленту без штрафа.
 
 **Ключевые слова**
 
@@ -64,7 +64,7 @@ Run a sorting line: drag colorful shapes into matching bins, build combos and ea
 
 **How to play**
 
-Use your mouse or finger to drag each shape from the belt into the bin with the same shape and color. Correct sorts earn coins and grow your combo. A mistake or missed shape costs a life; full bins return shapes without a penalty. Fill every bin to earn a jackpot and clear the bins. Spend coins on the upgrade buttons below. Every 20 correct sorts increases the pace automatically. After losing three lives, start a new run. Open mastery to see missions and progress. Use the speaker to mute sound and the pause icon to stop play. On desktop, Escape or P also toggles pause.
+Use your mouse or finger to drag each shape from the belt into the bin with the same shape and color. Correct sorts earn coins and grow your combo. A mistake or missed shape costs a life; full bins return shapes without a penalty. Fill every bin to earn a jackpot and clear the bins. Spend coins on the upgrade buttons below. Every 20 correct sorts increases the pace automatically. After losing three lives, start a new run. Open mastery to see missions and progress. Use the speaker to mute sound and the pause icon to stop play. On desktop, Escape or P also toggles pause. Hold the right mouse button on the belt to move a group of shapes. Matching shapes enter the target bin; others return without a penalty.
 
 **Keywords**
 

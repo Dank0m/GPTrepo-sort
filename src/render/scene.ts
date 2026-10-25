@@ -1,4 +1,4 @@
-import { COLORS, ITEM_STATE, type ItemType } from "../config.ts";
+import { COLORS, INPUT, ITEM_STATE, type ItemType } from "../config.ts";
 import { strings } from "../i18n/locale.ts";
 import type { CanvasSurface } from "../core/canvas.ts";
 import { drawDebugOverlay } from "../debug/overlay.ts";
@@ -26,6 +26,7 @@ export function drawScene(
 
   drawBelt(ctx, layout.belt, world.elapsed, world.pace.speed);
   drawBins(ctx, layout.bins, world);
+  drawGroupSelection(ctx, world);
   drawItems(ctx, world.items);
   drawParticles(ctx, world);
   ctx.restore();
@@ -119,7 +120,9 @@ function drawBins(
     );
     const hovering = world.hoverBinType === slot.type;
     const held = world.grabbed;
-    const matchHover = hovering && held !== null && held.type === slot.type;
+    const matchHover = hovering && held !== null && (world.groupGrab
+      ? world.groupGrab.entries.some(entry => entry.item.type === slot.type)
+      : held.type === slot.type);
     const feedback = world.feedback?.binType === slot.type ? world.feedback : null;
     const full = filled >= capacity;
 
@@ -184,6 +187,32 @@ function drawBins(
     ctx.textBaseline = "bottom";
     ctx.fillText(full ? strings().full : `${filled}/${capacity}`, iconX, slot.y + slot.height - (compact ? 6 : 8));
   }
+}
+
+function drawGroupSelection(ctx: CanvasRenderingContext2D, world: World): void {
+  const group = world.groupGrab;
+  if (!group) return;
+  const height = Math.max(world.layout.itemSize + 20, world.layout.belt.height);
+  ctx.save();
+  ctx.fillStyle = "rgba(232, 200, 76, 0.10)";
+  ctx.strokeStyle = COLORS.gold;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 5]);
+  ctx.beginPath();
+  ctx.roundRect(group.x - INPUT.groupRadius, group.y - height / 2, INPUT.groupRadius * 2, height, 12);
+  ctx.fill();
+  ctx.stroke();
+  for (const { item } of group.entries) {
+    ctx.beginPath();
+    ctx.arc(item.x, item.y, item.size * .65, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  ctx.font = "700 12px system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillStyle = COLORS.gold;
+  ctx.fillText(strings().groupCount(group.entries.length), Math.max(75, Math.min(world.layout.width - 75, group.x)), Math.max(16, group.y - height / 2 - 8));
+  ctx.restore();
 }
 
 function drawItems(ctx: CanvasRenderingContext2D, items: Item[]): void {

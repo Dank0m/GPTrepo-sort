@@ -83,6 +83,7 @@ export class ProgressPanel {
       <div class="progress-heading"><span class="eyebrow">SORT & UPGRADE</span><span class="level-badge">${rank.level}</span></div>
       <h1 id="progress-title">${this.first ? startText : t.progress}</h1>
       <p class="intro">${this.first ? t.howToPlay : t.permanentHint}</p>
+      ${window.matchMedia("(pointer: fine)").matches ? `<p class="daily-hint">${t.groupHelp}</p>` : ""}
       <section class="mastery-card" aria-label="${t.mastery}">
         <div class="row"><strong>${t.mastery} ${rank.level}</strong><span>${rank.current} / ${rank.needed} XP</span></div>
         <progress max="${rank.needed}" value="${rank.current}" aria-label="XP"></progress>
