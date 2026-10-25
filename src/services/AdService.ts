@@ -13,7 +13,7 @@ export type AdHost = {
 
 function mockAdsEnabled(): boolean {
   try {
-    return new URLSearchParams(window.location.search).get("mockAds") === "1";
+    return import.meta.env.DEV && new URLSearchParams(window.location.search).get("mockAds") === "1";
   } catch {
     return false;
   }

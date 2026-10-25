@@ -11,7 +11,8 @@ import {
   type UpgradeId,
 } from "../config.ts";
 import { sfx } from "../audio/sfx.ts";
-import { type Records } from "./save.ts";
+import { saveRecords, type Records } from "./save.ts";
+import { advanceProgression, rankInfo, sanitizeProgression } from "./progression.ts";
 import { createBin, type Bin } from "./bin.ts";
 import { Fx } from "./fx.ts";
 import { hitBin, hitItem, pointInRect } from "./hit.ts";
@@ -80,6 +81,7 @@ export class World implements AdHost {
   beatBestCombo = false;
   adsPlaying = false;
   dumpOffer: DumpOffer | null = null;
+  private manualCombo = 0;
   private spawnTimer = 0;
   private autoTimer = 0;
 
@@ -89,16 +91,17 @@ export class World implements AdHost {
       freeCoins: adService.available,
     });
     this.resetSession();
+    this.paused = true;
   }
 
   restart(): void {
+    if (document.hidden || yandexService.platformPaused) return;
     const kept = Math.floor(this.coins * ECONOMY.rebirthKeep);
     if (this.status === "over") {
-      this.records.gamesPlayed += 1;
       this.persistRecords();
     }
     this.resetSession();
-    this.coins = kept;
+    this.coins += kept;
     if (kept > 0) {
       this.lastGain = kept;
       this.fx.float(
@@ -114,28 +117,24 @@ export class World implements AdHost {
   }
 
   pause(): void {
-    if (this.adsPlaying || this.dumpOffer || this.paused || this.status !== "playing") {
-      return;
-    }
+    sfx.hush();
+    yandexService.gameplayStop();
+    if (this.paused || this.status !== "playing") return;
     this.paused = true;
     if (this.grabbed) {
       this.returnToBelt(this.grabbed);
       this.grabbed = null;
       this.hoverBinType = null;
     }
-    sfx.hush();
-    yandexService.gameplayStop();
   }
 
   resume(): void {
-    if (!this.paused) {
+    if (!this.paused || this.adsPlaying || document.hidden || yandexService.platformPaused) {
       return;
     }
     this.paused = false;
     sfx.unlock();
-    if (this.status === "playing" && !this.adsPlaying) {
-      yandexService.gameplayStart();
-    }
+    if (this.isPlayable()) yandexService.gameplayStart();
   }
 
   togglePause(): void {
@@ -167,7 +166,7 @@ export class World implements AdHost {
   }
 
   isPlayable(): boolean {
-    return this.status === "playing" && !this.paused && !this.adsPlaying;
+    return this.status === "playing" && !this.paused && !this.adsPlaying && !this.dumpOffer && !document.hidden && !yandexService.platformPaused;
   }
 
   showFreeCoins(): boolean {
@@ -216,11 +215,12 @@ export class World implements AdHost {
     if (this.paused) {
       return;
     }
+    if (this.status !== "playing") return;
     this.updateFlights(dt);
     if (this.dumpOffer) {
       this.dumpOffer.remaining -= dt;
       if (this.dumpOffer.remaining <= 0) {
-        this.dumpOffer = null;
+        this.closeDumpOffer();
       }
       return;
     }
@@ -237,7 +237,7 @@ export class World implements AdHost {
   }
 
   pointerDown(x: number, y: number): boolean {
-    if (this.adsPlaying) {
+    if (this.adsPlaying || document.hidden || yandexService.platformPaused) {
       return false;
     }
     if (pointInRect(x, y, this.layout.mute)) {
@@ -259,6 +259,10 @@ export class World implements AdHost {
       this.restart();
       return false;
     }
+    if (this.paused) {
+      this.resume();
+      return false;
+    }
     if (this.dumpOffer) {
       const ui = this.dumpOfferUi(this.layout.width, this.layout.height);
       if (hitRect(x, y, ui?.doubleBtn)) {
@@ -266,13 +270,9 @@ export class World implements AdHost {
         return false;
       }
       if (hitRect(x, y, ui?.dismissBtn)) {
-        this.dumpOffer = null;
+        this.closeDumpOffer();
         return false;
       }
-      return false;
-    }
-    if (this.paused) {
-      this.resume();
       return false;
     }
     sfx.unlock();
@@ -410,8 +410,10 @@ export class World implements AdHost {
     this.hoverFreeCoins = false;
     this.feedback = null;
     this.lastDrop = "none";
-    this.coins = 0;
+    this.records.progression = sanitizeProgression(this.records.progression);
+    this.coins = rankInfo(this.records.progression.xp).startingCoins;
     this.combo = 0;
+    this.manualCombo = 0;
     this.maxCombo = 0;
     this.lives = ECONOMY.startLives;
     this.status = "playing";
@@ -449,6 +451,7 @@ export class World implements AdHost {
 
   private applyMiss(): void {
     this.combo = 0;
+    this.manualCombo = 0;
     this.lastGain = 0;
     this.lives -= 1;
     this.fx.miss();
@@ -457,6 +460,7 @@ export class World implements AdHost {
       this.status = "over";
       this.grabbed = null;
       this.dumpOffer = null;
+      this.records.gamesPlayed += 1;
       this.commitRecords();
       yandexService.gameplayStop();
       sfx.play("over");
@@ -478,6 +482,7 @@ export class World implements AdHost {
   }
 
   private persistRecords(): void {
+    saveRecords(this.records);
     void yandexService.saveGame(this.records);
   }
 
@@ -488,6 +493,11 @@ export class World implements AdHost {
     sfx.play("buy");
   }
 
+  private closeDumpOffer(): void {
+    this.dumpOffer = null;
+    if (this.isPlayable()) yandexService.gameplayStart();
+  }
+
   private async watchDumpDouble(): Promise<void> {
     const bonus = this.dumpOffer?.bonus ?? 0;
     if (!this.dumpOffer || bonus <= 0) {
@@ -495,6 +505,7 @@ export class World implements AdHost {
     }
     this.dumpOffer = null;
     const result = await adService.show("dumpDouble", this);
+    if (this.isPlayable()) yandexService.gameplayStart();
     if (result === "rewarded") {
       this.grantBonus(bonus);
       this.persistRecords();
@@ -692,6 +703,8 @@ export class World implements AdHost {
     this.fx.burst(cx, cy, COLORS.item[bin.type], fromHand ? 14 : 18);
     this.fx.float(cx, cy - 8, `+${this.lastGain}`, COLORS.gold);
     sfx.play("ok", this.combo);
+    if (fromHand) this.manualCombo += 1;
+    this.advanceMastery({ kind: "sort", combo: this.manualCombo, manual: fromHand });
     this.tryDump();
   }
 
@@ -704,6 +717,7 @@ export class World implements AdHost {
     }
     const types = this.bins.length;
     const bonus = ECONOMY.dumpBonus(types);
+    this.advanceMastery({ kind: "set" });
     this.coins += bonus;
     this.lastGain = bonus;
     for (const bin of this.bins) {
@@ -727,7 +741,19 @@ export class World implements AdHost {
     sfx.play("dump");
     if (adService.available) {
       this.dumpOffer = { bonus, remaining: ADS.dumpOfferSeconds };
+      yandexService.gameplayStop();
     }
+  }
+
+  private advanceMastery(event: Parameters<typeof advanceProgression>[1]): void {
+    const reward = advanceProgression(this.records.progression, event);
+    if (reward.coins > 0) this.grantBonus(reward.coins);
+    if (reward.completed.length > 0 || reward.rankUp) {
+      this.fx.float(this.layout.width / 2, this.layout.belt.y - 12,
+        reward.rankUp ? strings().rankUp : strings().missionDone,
+        COLORS.gold, 22, 2);
+    }
+    this.persistRecords();
   }
 
   private canSpawn(): boolean {
@@ -750,7 +776,13 @@ export class World implements AdHost {
 
   private spawnItem(): void {
     const types = activeTypes(this.levels);
-    const type = types[Math.floor(Math.random() * types.length)] ?? "red";
+    // Avoid an unwinnable belt full of shapes whose bins are already full.
+    const available = types.filter((type) => {
+      const bin = this.bins.find((entry) => entry.type === type);
+      return bin && bin.filled < bin.capacity;
+    });
+    if (!available.length) return;
+    const type = available[Math.floor(Math.random() * available.length)] ?? "red";
     const belt = this.layout.belt;
     const size = this.layout.itemSize;
     const x = belt.x - size * 0.35;

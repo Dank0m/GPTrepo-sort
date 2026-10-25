@@ -1,4 +1,4 @@
-import { COLORS, GAME_TITLE, ITEM_STATE, type ItemType } from "../config.ts";
+import { COLORS, ITEM_STATE, type ItemType } from "../config.ts";
 import { strings } from "../i18n/locale.ts";
 import type { CanvasSurface } from "../core/canvas.ts";
 import { drawDebugOverlay } from "../debug/overlay.ts";
@@ -24,7 +24,7 @@ export function drawScene(
   ctx.translate(world.fx.offsetX, world.fx.offsetY);
 
   drawTable(ctx, layout);
-  drawTitle(ctx, layout);
+
   drawBelt(ctx, layout.belt, world.elapsed, beltSpeed(world.levels));
   drawBins(ctx, layout.bins, world);
   drawItems(ctx, world.items);
@@ -70,14 +70,6 @@ export function drawScene(
 function drawTable(ctx: CanvasRenderingContext2D, layout: PlayfieldLayout): void {
   ctx.fillStyle = COLORS.table;
   ctx.fillRect(0, layout.belt.y - 24, layout.width, layout.height);
-}
-
-function drawTitle(ctx: CanvasRenderingContext2D, layout: PlayfieldLayout): void {
-  ctx.textAlign = "left";
-  ctx.textBaseline = "top";
-  ctx.fillStyle = COLORS.muted;
-  ctx.font = "600 12px ui-rounded, system-ui, sans-serif";
-  ctx.fillText(GAME_TITLE, layout.hud.x + 4, layout.hud.y + layout.hud.height + 4);
 }
 
 function drawBelt(

@@ -23,20 +23,21 @@ export class Sfx {
   }
 
   unlock(): void {
+    if (document.hidden) return;
     const ctx = this.ensure();
     if (ctx?.state === "suspended") {
-      void ctx.resume();
+      void ctx.resume().catch(() => { /* Requires a fresh user gesture on some browsers. */ });
     }
   }
 
   hush(): void {
     if (this.ctx?.state === "running") {
-      void this.ctx.suspend();
+      void this.ctx.suspend().catch(() => { /* Browser may already be closing. */ });
     }
   }
 
   play(kind: "ok" | "bad" | "buy" | "reject" | "full" | "over" | "dump", combo = 1): void {
-    if (this.muted) return;
+    if (this.muted || document.hidden) return;
     const ctx = this.ensure();
     if (!ctx || ctx.state !== "running") return;
     const now = ctx.currentTime;

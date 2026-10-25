@@ -1,10 +1,18 @@
+import { emptyProgression, sanitizeProgression, type Progression } from "./progression.ts";
+
 export type Records = {
   bestCoins: number;
   bestCombo: number;
   gamesPlayed: number;
+  progression: Progression;
 };
 
 const KEY = "sortup-records";
+
+function counter(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, Math.floor(value))) : 0;
+}
 
 export function loadRecords(): Records {
   try {
@@ -12,9 +20,10 @@ export function loadRecords(): Records {
     if (!raw) return emptyRecords();
     const parsed = JSON.parse(raw) as Partial<Records>;
     return {
-      bestCoins: Math.max(0, Math.floor(Number(parsed.bestCoins) || 0)),
-      bestCombo: Math.max(0, Math.floor(Number(parsed.bestCombo) || 0)),
-      gamesPlayed: Math.max(0, Math.floor(Number(parsed.gamesPlayed) || 0)),
+      bestCoins: counter(parsed.bestCoins),
+      bestCombo: counter(parsed.bestCombo),
+      gamesPlayed: counter(parsed.gamesPlayed),
+      progression: sanitizeProgression(parsed.progression),
     };
   } catch {
     return emptyRecords();
@@ -30,5 +39,5 @@ export function saveRecords(records: Records): void {
 }
 
 export function emptyRecords(): Records {
-  return { bestCoins: 0, bestCombo: 0, gamesPlayed: 0 };
+  return { bestCoins: 0, bestCombo: 0, gamesPlayed: 0, progression: emptyProgression() };
 }

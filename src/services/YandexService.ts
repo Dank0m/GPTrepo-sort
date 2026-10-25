@@ -1,4 +1,5 @@
 import { loadRecords, saveRecords, type Records } from "../game/save.ts";
+import { sanitizeProgression, mergeProgression } from "../game/progression.ts";
 
 export type GameSave = Records;
 
@@ -35,6 +36,7 @@ type Ysdk = {
     GameplayAPI?: { start: () => void; stop: () => void };
   };
   environment?: { i18n?: { lang?: string } };
+  on?: (event: "game_api_pause" | "game_api_resume", callback: () => void) => void;
   getPlayer: (opts?: { scopes?: boolean }) => Promise<YaPlayer>;
   getStorage?: () => Promise<StorageLike>;
 };
@@ -44,10 +46,15 @@ type YaGamesNamespace = {
 };
 
 const SAVE_KEY = "sortup-records";
-const SCRIPT_WAIT_MS = 2800;
+const SCRIPT_WAIT_MS = 8000;
+const CLOUD_SAVE_INTERVAL_MS = 5000;
 
 function yaGames(): YaGamesNamespace | undefined {
   return (window as Window & { YaGames?: YaGamesNamespace }).YaGames;
+}
+
+function safeCounter(raw: unknown): number {
+  return typeof raw === "number" && Number.isFinite(raw) ? Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, Math.floor(raw))) : 0;
 }
 
 function asRecords(raw: unknown): Records | null {
@@ -55,13 +62,13 @@ function asRecords(raw: unknown): Records | null {
     return null;
   }
   const data = raw as Partial<Records>;
-  const bestCoins = Math.max(0, Math.floor(Number(data.bestCoins) || 0));
-  const bestCombo = Math.max(0, Math.floor(Number(data.bestCombo) || 0));
-  const gamesPlayed = Math.max(0, Math.floor(Number(data.gamesPlayed) || 0));
+  const bestCoins = safeCounter(data.bestCoins);
+  const bestCombo = safeCounter(data.bestCombo);
+  const gamesPlayed = safeCounter(data.gamesPlayed);
   if (bestCoins === 0 && bestCombo === 0 && gamesPlayed === 0 && !("bestCoins" in data)) {
     return null;
   }
-  return { bestCoins, bestCombo, gamesPlayed };
+  return { bestCoins, bestCombo, gamesPlayed, progression: sanitizeProgression(data.progression) };
 }
 
 function mergeRecords(a: Records, b: Records): Records {
@@ -69,6 +76,7 @@ function mergeRecords(a: Records, b: Records): Records {
     bestCoins: Math.max(a.bestCoins, b.bestCoins),
     bestCombo: Math.max(a.bestCombo, b.bestCombo),
     gamesPlayed: Math.max(a.gamesPlayed, b.gamesPlayed),
+    progression: mergeProgression(a.progression, b.progression),
   };
 }
 
@@ -114,17 +122,33 @@ function loadScript(src: string, timeoutMs: number): Promise<void> {
 
 export class YandexService {
   available = false;
+  platformPaused = false;
   private ysdk: Ysdk | null = null;
   private gameplayOn = false;
   private markedReady = false;
   private cloud: "player" | "storage" | "local" = "local";
   private storage: StorageLike | null = null;
   private player: YaPlayer | null = null;
+  private readonly pauseHandlers = new Set<() => void>();
+  private readonly resumeHandlers = new Set<() => void>();
+  private pendingSave: GameSave | null = null;
+  private saveTimer: number | null = null;
+  private saving = false;
+  private lastCloudSave = 0;
+
+  onPlatformPause(handler: () => void): () => void {
+    this.pauseHandlers.add(handler);
+    return () => { this.pauseHandlers.delete(handler); };
+  }
+
+  onPlatformResume(handler: () => void): () => void {
+    this.resumeHandlers.add(handler);
+    return () => { this.resumeHandlers.delete(handler); };
+  }
 
   async init(): Promise<void> {
-    const tagged = Boolean(document.querySelector('script[src="/sdk.js"]'));
-    let api = yaGames() ?? (await waitForYaGames(tagged ? 150 : 50));
-    if (!api && !tagged) {
+    let api = yaGames();
+    if (!api) {
       await loadScript("/sdk.js", SCRIPT_WAIT_MS);
       api = yaGames();
     }
@@ -136,7 +160,17 @@ export class YandexService {
     try {
       this.ysdk = await api.init();
       this.available = true;
+      this.ysdk.on?.("game_api_pause", () => {
+        this.platformPaused = true;
+        this.gameplayStop();
+        for (const handler of this.pauseHandlers) handler();
+      });
+      this.ysdk.on?.("game_api_resume", () => {
+        this.platformPaused = false;
+        for (const handler of this.resumeHandlers) handler();
+      });
       await this.bindCloud();
+      window.addEventListener("pagehide", () => { void this.flushSave(); });
     } catch {
       this.ysdk = null;
       this.available = false;
@@ -153,7 +187,7 @@ export class YandexService {
   }
 
   gameplayStart(): void {
-    if (!this.ysdk || this.gameplayOn) {
+    if (!this.ysdk || this.gameplayOn || document.hidden || this.platformPaused) {
       return;
     }
     this.ysdk.features?.GameplayAPI?.start();
@@ -186,7 +220,7 @@ export class YandexService {
         this.ysdk!.adv.showRewardedVideo({
           callbacks: {
             onRewarded: () => {
-              rewarded = true;
+              if (!settled) rewarded = true;
             },
             onClose: () => finish(),
             onError: () => finish(),
@@ -225,16 +259,36 @@ export class YandexService {
   }
 
   async saveGame(data: GameSave): Promise<void> {
+    // Local progress is durable immediately; only remote writes are coalesced.
     saveRecords(data);
-    if (!this.ysdk) {
-      return;
+    if (!this.ysdk) return;
+    this.pendingSave = JSON.parse(JSON.stringify(data)) as GameSave;
+    this.scheduleSave();
+  }
+
+  private scheduleSave(): void {
+    if (this.saveTimer !== null || this.saving || !this.pendingSave) return;
+    const delay = Math.max(250, CLOUD_SAVE_INTERVAL_MS - (Date.now() - this.lastCloudSave));
+    this.saveTimer = window.setTimeout(() => {
+      this.saveTimer = null;
+      void this.flushSave();
+    }, delay);
+  }
+
+  private async flushSave(): Promise<void> {
+    if (this.saving || !this.pendingSave || !this.ysdk) return;
+    if (this.saveTimer !== null) {
+      window.clearTimeout(this.saveTimer);
+      this.saveTimer = null;
     }
+    const data = this.pendingSave;
+    this.pendingSave = null;
+    this.saving = true;
+    this.lastCloudSave = Date.now();
     try {
       if (this.cloud === "player" && this.player) {
-        await this.player.setData({ ...data }, true);
-        return;
-      }
-      if (this.cloud === "storage") {
+        await this.player.setData({ ...data });
+      } else if (this.cloud === "storage") {
         const storage = this.storage ?? (await this.ysdk.getStorage?.());
         if (storage) {
           this.storage = storage;
@@ -242,7 +296,11 @@ export class YandexService {
         }
       }
     } catch {
-      /* keep localStorage copy */
+      // The local copy remains available. Retry the latest state, never a stale write.
+      this.pendingSave ??= data;
+    } finally {
+      this.saving = false;
+      this.scheduleSave();
     }
   }
 
@@ -253,13 +311,14 @@ export class YandexService {
     }
     try {
       if (this.cloud === "player" && this.player) {
-        const raw = await this.player.getData(["bestCoins", "bestCombo", "gamesPlayed"]);
+        const raw = await this.player.getData(["bestCoins", "bestCombo", "gamesPlayed", "progression"]);
         const cloud = asRecords(raw);
         if (!cloud) {
           return local;
         }
         const merged = mergeRecords(local, cloud);
-        if (merged.bestCoins !== cloud.bestCoins || merged.bestCombo !== cloud.bestCombo || merged.gamesPlayed !== cloud.gamesPlayed) {
+        saveRecords(merged);
+        if (JSON.stringify(merged) !== JSON.stringify(cloud)) {
           await this.saveGame(merged);
         }
         return merged;
@@ -274,7 +333,9 @@ export class YandexService {
         if (!cloud) {
           return local;
         }
-        return mergeRecords(local, cloud);
+        const merged = mergeRecords(local, cloud);
+        saveRecords(merged);
+        return merged;
       }
     } catch {
       return local;

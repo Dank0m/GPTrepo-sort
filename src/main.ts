@@ -15,9 +15,6 @@ const boot = async (): Promise<void> => {
   const app = new App(canvas, records);
   app.start();
   yandexService.ready();
-  if (!document.hidden) {
-    yandexService.gameplayStart();
-  }
 };
 
 void boot();

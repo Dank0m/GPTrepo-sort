@@ -20,6 +20,7 @@ export type PlayfieldLayout = {
   width: number;
   height: number;
   hud: Rect;
+  progress: Rect;
   mute: Rect;
   pause: Rect;
   lang: Rect;
@@ -44,7 +45,7 @@ export function computeLayout(
 ): PlayfieldLayout {
   const pad = clamp(Math.min(width, height) * 0.04, 10, 28);
   const narrow = width < 560;
-  const headerH = clamp(height * 0.1, 56, 80);
+  const headerH = narrow ? 104 : clamp(height * 0.1, 64, 80);
 
   const hud: Rect = {
     x: pad,
@@ -55,7 +56,7 @@ export function computeLayout(
   const muteSize = 36;
   const mute: Rect = {
     x: hud.x + hud.width - muteSize,
-    y: hud.y + 8,
+    y: hud.y + (narrow ? 58 : 8),
     width: muteSize,
     height: muteSize,
   };
@@ -83,7 +84,8 @@ export function computeLayout(
     height: shopHeight,
   };
 
-  const playTop = hud.y + hud.height + pad * 0.35;
+  const progress: Rect = { x: pad, y: hud.y + hud.height + 8, width: hud.width, height: 50 };
+  const playTop = progress.y + progress.height + pad * 0.35;
   const playBottom = shop.y - pad * 0.7;
   const playH = Math.max(120, playBottom - playTop);
   const manyTypes = types.length >= 5;
@@ -128,6 +130,7 @@ export function computeLayout(
     width,
     height,
     hud,
+    progress,
     mute,
     pause,
     lang,

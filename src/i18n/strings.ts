@@ -3,6 +3,20 @@ import type { ItemType, UpgradeId } from "../config.ts";
 export type Locale = "ru" | "en";
 
 export type Strings = {
+  progress: string;
+  mastery: string;
+  rankUp: string;
+  missionDone: string;
+  dailyTitle: string;
+  dailyHint: string;
+  missionNames: Record<"sort" | "combo" | "set", string>;
+  play: string;
+  continueGame: string;
+  howToPlay: string;
+  permanentHint: string;
+  startingBonus: string;
+  earned: string;
+  allDone: string;
   coins: string;
   coinsShort: string;
   record: string;
@@ -41,6 +55,20 @@ export type Strings = {
 
 export const STRINGS: Record<Locale, Strings> = {
   ru: {
+    progress: "Мой прогресс",
+    mastery: "Мастерство",
+    rankUp: "Новый уровень мастерства!",
+    missionDone: "Задание выполнено!",
+    dailyTitle: "Задания дня",
+    dailyHint: "Новые задания в 00:00 UTC. Награды начисляются сразу.",
+    missionNames: { sort: "Отсортируй 30 фигур вручную", combo: "12 фигур подряд вручную без ошибок", set: "Собери полный набор контейнеров" },
+    play: "Начать сортировку",
+    continueGame: "Продолжить",
+    howToPlay: "Тяни фигуры в контейнеры той же формы. Серия без ошибок растит комбо. Заполни все контейнеры — получи джекпот! Монеты трать на улучшения внизу.",
+    permanentHint: "Ручная сортировка даёт +2 XP, полный набор +20 XP. Уровень и задания сохраняются между партиями. За пропущенные дни штрафов нет.",
+    startingBonus: "Монет на старте каждой партии",
+    earned: "Получено",
+    allDone: "Все задания выполнены! Следующие — завтра.",
     coins: "Монеты",
     coinsShort: "Монеты",
     record: "Рекорд",
@@ -67,7 +95,7 @@ export const STRINGS: Record<Locale, Strings> = {
     adsHint: "Награда придёт после просмотра",
     wait: "жди",
     ad: "реклама",
-    freeCoins: "FREE COINS",
+    freeCoins: "Монеты за рекламу",
     freeCoinsShort: "Монеты",
     miss: "Мимо",
     binFull: "Полно",
@@ -90,6 +118,20 @@ export const STRINGS: Record<Locale, Strings> = {
     },
   },
   en: {
+    progress: "My progress",
+    mastery: "Mastery",
+    rankUp: "Mastery level up!",
+    missionDone: "Mission complete!",
+    dailyTitle: "Daily missions",
+    dailyHint: "New missions at 00:00 UTC. Rewards are granted instantly.",
+    missionNames: { sort: "Sort 30 shapes by hand", combo: "12 manual sorts without a miss", set: "Fill every bin for a full set" },
+    play: "Start sorting",
+    continueGame: "Continue",
+    howToPlay: "Drag shapes into matching bins. Keep a clean streak to grow your combo. Fill every bin for a jackpot! Spend coins on upgrades below.",
+    permanentHint: "Manual sorting earns +2 XP, a full set +20 XP. Levels and missions persist between runs. No penalty for missed days.",
+    startingBonus: "Starting coins in every run",
+    earned: "Earned",
+    allDone: "All missions complete! More tomorrow.",
     coins: "Coins",
     coinsShort: "Coins",
     record: "Best",

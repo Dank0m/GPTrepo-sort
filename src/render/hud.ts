@@ -18,38 +18,38 @@ export function drawHud(ctx: CanvasRenderingContext2D, world: World): void {
   ctx.stroke();
 
   const pad = 16;
-  const cy = hud.y + hud.height * 0.42;
+  const cy = hud.y + (narrow ? 22 : hud.height * 0.42);
   ctx.textBaseline = "middle";
 
   ctx.textAlign = "left";
   ctx.fillStyle = COLORS.gold;
   ctx.font = `700 ${narrow ? 16 : 18}px ui-rounded, system-ui, sans-serif`;
-  ctx.fillText(narrow ? `${world.coins}` : `${t.coins}  ${world.coins}`, hud.x + pad, hud.y + hud.height * 0.38);
+  ctx.fillText(narrow ? `${world.coins}` : `${t.coins}  ${world.coins}`, hud.x + pad, hud.y + (narrow ? 22 : hud.height * 0.38));
 
   ctx.fillStyle = COLORS.muted;
   ctx.font = `600 ${narrow ? 11 : 12}px ui-rounded, system-ui, sans-serif`;
   ctx.fillText(
     narrow ? `${t.recordShort} ${world.records.bestCoins}` : `${t.record}  ${world.records.bestCoins}`,
     hud.x + pad,
-    hud.y + hud.height * 0.72,
+    hud.y + (narrow ? 44 : hud.height * 0.72),
   );
 
   ctx.textAlign = "center";
   ctx.fillStyle = world.combo > 0 ? COLORS.title : COLORS.muted;
   ctx.font = `700 ${narrow ? 15 : 17}px ui-rounded, system-ui, sans-serif`;
   const combo = world.combo > 0 ? `×${world.combo}` : "×0";
-  ctx.fillText(narrow ? combo : `${t.combo}  ${combo}`, hud.x + hud.width * 0.42, cy);
+  ctx.fillText(narrow ? combo : `${t.combo}  ${combo}`, hud.x + hud.width * (narrow ? 0.48 : 0.42), cy);
   if (world.lastGain > 0 && world.combo > 0) {
     ctx.fillStyle = COLORS.gold;
     ctx.font = "600 13px ui-rounded, system-ui, sans-serif";
-    ctx.fillText(`+${world.lastGain}`, hud.x + hud.width * 0.44, hud.y + hud.height * 0.74);
+    ctx.fillText(`+${world.lastGain}`, hud.x + hud.width * 0.44, hud.y + (narrow ? 44 : hud.height * 0.74));
   }
 
   ctx.textAlign = "right";
   ctx.fillStyle = COLORS.heart;
   ctx.font = `${narrow ? 16 : 18}px system-ui, sans-serif`;
   const hearts = "♥".repeat(world.lives) + "♡".repeat(Math.max(0, ECONOMY.startLives - world.lives));
-  ctx.fillText(hearts, lang.x - 10, cy);
+  ctx.fillText(hearts, narrow ? hud.x + hud.width - 16 : lang.x - 10, cy);
 
   drawLang(ctx, lang);
   drawIconButton(ctx, world.layout.pause);

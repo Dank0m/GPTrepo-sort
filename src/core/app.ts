@@ -1,4 +1,6 @@
 import { CanvasSurface } from "./canvas.ts";
+import { ProgressPanel } from "../ui/ProgressPanel.ts";
+import { yandexService } from "../services/YandexService.ts";
 import { GameLoop } from "./loop.ts";
 import { canvasPoint } from "./pointer.ts";
 import { World } from "../game/world.ts";
@@ -10,6 +12,7 @@ export class App {
   private readonly surface: CanvasSurface;
   private readonly loop: GameLoop;
   private readonly world: World;
+  private readonly progressPanel: ProgressPanel;
 
   constructor(canvas: HTMLCanvasElement, records: Records) {
     this.surface = new CanvasSurface(canvas);
@@ -18,6 +21,9 @@ export class App {
       update: (dt) => this.update(dt),
       render: () => this.render(),
     });
+    this.progressPanel = new ProgressPanel(this.world);
+    yandexService.onPlatformPause(() => this.world.pause());
+    // Keep the game paused until an explicit player action after platform resume.
     this.bindResize();
     this.bindPointer();
     this.bindKeys();
@@ -27,6 +33,7 @@ export class App {
   start(): void {
     this.surface.resize();
     this.world.resize(this.surface.cssWidth, this.surface.cssHeight);
+    this.render();
     this.loop.start();
   }
 
@@ -79,7 +86,8 @@ export class App {
 
   private bindKeys(): void {
     window.addEventListener("keydown", (event) => {
-      if (event.key === "d" || event.key === "D") {
+      if (this.progressPanel.isOpen) return;
+      if (import.meta.env.DEV && (event.key === "d" || event.key === "D")) {
         this.world.debug = !this.world.debug;
       }
       if (event.key === "Escape" || event.key === "p" || event.key === "P") {
@@ -111,5 +119,6 @@ export class App {
       this.world.resize(this.surface.cssWidth, this.surface.cssHeight);
     }
     drawScene(this.surface, this.world, this.loop.framesPerSecond);
+    this.progressPanel.update();
   }
 }
