@@ -432,8 +432,8 @@ export class World implements AdHost {
   private returnGroup(items: Item[]): void {
     if (!items.length) return;
     const belt = this.layout.belt;
-    const left = Math.min(...items.map(item => item.x - item.size / 2));
-    const right = Math.max(...items.map(item => item.x + item.size / 2));
+    const left = Math.min(...items.map(item => item.x - this.layout.itemSize / 2));
+    const right = Math.max(...items.map(item => item.x + this.layout.itemSize / 2));
     const shift = Math.max(belt.x - left, Math.min(0, belt.x + belt.width - right));
     for (const item of items) {
       item.x += shift;

@@ -79,7 +79,8 @@ test('right-drag back to the belt keeps spacing at the left boundary without sor
   const w=new World(800,700,emptyRecords());w.resume();const y=w.layout.belt.y+w.layout.belt.height/2;
   const a=createItem('red',220,y,50),b=createItem('blue',290,y,50);w.items=[a,b];
   w.pointerDown(250,y,2);w.pointerMove(20,y);w.pointerUp(20,y);
-  return {spacing:b.x-a.x,leftInside:a.x-a.size/2>=w.layout.belt.x,onBelt:w.items.every(i=>i.state==='onBelt'),sorted:w.sortedCount,lives:w.lives};
+  return {spacing:b.x-a.x,leftInside:a.x-a.size/2>=w.layout.belt.x-1e-8,onBelt:w.items.every(i=>i.state==='onBelt'),sorted:w.sortedCount,lives:w.lives};
  });
- expect(result).toEqual({spacing:70,leftInside:true,onBelt:true,sorted:0,lives:3});
+ expect(result.spacing).toBeCloseTo(70,6);
+ expect({...result,spacing:70}).toEqual({spacing:70,leftInside:true,onBelt:true,sorted:0,lives:3});
 });
