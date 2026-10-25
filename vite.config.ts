@@ -29,6 +29,9 @@ function disableShortKeepAlive(): Plugin {
 }
 
 export default defineConfig({
+  // Yandex serves each uploaded version from a nested directory.
+  // Keep app assets relative; the platform SDK deliberately remains /sdk.js.
+  base: "./",
   plugins: [disableShortKeepAlive()],
   server: {
     host: "0.0.0.0",
