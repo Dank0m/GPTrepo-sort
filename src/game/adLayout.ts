@@ -40,7 +40,7 @@ export function dumpOfferUi(width: number, height: number): DumpOfferUi {
   const boxH = 148;
   const box: Rect = {
     x: (width - boxW) / 2,
-    y: height * 0.38 + 84,
+    y: Math.max(8, Math.min(height * 0.38 + 84, height - boxH - 8)),
     width: boxW,
     height: boxH,
   };

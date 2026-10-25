@@ -43,9 +43,10 @@ export function computeLayout(
   types: readonly ItemType[],
   options: { freeCoins?: boolean } = {},
 ): PlayfieldLayout {
-  const pad = clamp(Math.min(width, height) * 0.04, 10, 28);
+  const short = height < 400;
+  const pad = short ? 8 : clamp(Math.min(width, height) * 0.04, 10, 28);
   const narrow = width < 560;
-  const headerH = narrow ? 104 : clamp(height * 0.1, 64, 80);
+  const headerH = short ? (narrow ? 90 : 56) : narrow ? 104 : clamp(height * 0.1, 64, 80);
 
   const hud: Rect = {
     x: pad,
@@ -53,10 +54,10 @@ export function computeLayout(
     width: Math.max(80, width - pad * 2),
     height: headerH,
   };
-  const muteSize = 36;
+  const muteSize = short ? 32 : 36;
   const mute: Rect = {
     x: hud.x + hud.width - muteSize,
-    y: hud.y + (narrow ? 58 : 8),
+    y: hud.y + (narrow ? (short ? 50 : 58) : 8),
     width: muteSize,
     height: muteSize,
   };
@@ -66,7 +67,7 @@ export function computeLayout(
     width: muteSize,
     height: muteSize,
   };
-  const langW = 104;
+  const langW = short ? 92 : 104;
   const lang: Rect = {
     x: pause.x - 8 - langW,
     y: mute.y,
@@ -76,7 +77,7 @@ export function computeLayout(
 
   const shopRows = narrow ? 2 : 1;
   const shopHeight =
-    shopRows === 2 ? clamp(height * 0.2, 108, 148) : clamp(height * 0.135, 72, 96);
+    short ? (shopRows === 2 ? 92 : 64) : shopRows === 2 ? clamp(height * 0.2, 108, 148) : clamp(height * 0.135, 72, 96);
   const shop: Rect = {
     x: pad,
     y: height - pad - shopHeight,
@@ -84,13 +85,13 @@ export function computeLayout(
     height: shopHeight,
   };
 
-  const progress: Rect = { x: pad, y: hud.y + hud.height + 8, width: hud.width, height: 50 };
+  const progress: Rect = { x: pad, y: hud.y + hud.height + (short ? 4 : 8), width: hud.width, height: short ? 40 : 50 };
   const playTop = progress.y + progress.height + pad * 0.35;
   const playBottom = shop.y - pad * 0.7;
-  const playH = Math.max(120, playBottom - playTop);
+  const playH = Math.max(short ? 64 : 120, playBottom - playTop);
   const manyTypes = types.length >= 5;
 
-  const beltHeight = clamp(playH * (manyTypes ? 0.22 : 0.3), 52, 108);
+  const beltHeight = clamp(playH * (manyTypes ? 0.22 : 0.3), short ? 36 : 52, short ? 64 : 108);
   const belt: Rect = {
     x: pad,
     y: playTop + playH * 0.06,
@@ -100,8 +101,8 @@ export function computeLayout(
 
   const binCount = Math.max(1, types.length);
   const binAreaTop = belt.y + belt.height + pad * 0.7;
-  const binAreaH = Math.max(72, shop.y - binAreaTop - pad * 0.45);
-  const rows = binCount >= 5 ? 2 : 1;
+  const binAreaH = Math.max(short ? 32 : 72, shop.y - binAreaTop - pad * 0.45);
+  const rows = binCount >= 5 && !(short && narrow) ? 2 : 1;
   const cols = Math.ceil(binCount / rows);
   const gap = narrow ? 8 : 12;
   const rowGap = 8;

@@ -1,3 +1,4 @@
+import { yandexService } from "../services/YandexService.ts";
 import type { World } from "../game/world.ts";
 import { dailyMissions, rankInfo, sanitizeProgression } from "../game/progression.ts";
 import { currentLocale, strings } from "../i18n/locale.ts";
@@ -15,6 +16,9 @@ export class ProgressPanel {
     this.button.type = "button";
     this.button.addEventListener("click", () => this.open());
     this.dialog.className = "progress-dialog";
+    for (const element of [this.button, this.dialog]) {
+      element.addEventListener("contextmenu", (event) => event.preventDefault());
+    }
     this.dialog.setAttribute("aria-labelledby", "progress-title");
     this.dialog.addEventListener("cancel", (event) => {
       event.preventDefault();
@@ -56,16 +60,17 @@ export class ProgressPanel {
     const progress = this.world.records.progression;
     const t = strings();
     const rank = rankInfo(progress.xp);
+    const shift = this.world.shift;
     const missions = dailyMissions(progress);
     const next = missions.find((mission) => !mission.done);
-    const signature = JSON.stringify([progress, currentLocale(), this.first, this.world.status, this.world.restoredSession]);
+    const signature = JSON.stringify([progress, currentLocale(), this.first, this.world.status, this.world.restoredSession, shift.stage, shift.remaining]);
     const startText = this.world.restoredSession ? t.continueGame : t.play;
     if (signature === this.signature) return;
     this.signature = signature;
     const summary = next ? `${t.missionNames[next.id]} · ${next.current}/${next.target}` : t.allDone;
     this.button.replaceChildren();
     const level = document.createElement("strong");
-    level.textContent = `${t.mastery} ${rank.level}`;
+    level.textContent = `${t.shift(shift.stage)} · ${t.mastery} ${rank.level}`;
     const goal = document.createElement("span");
     goal.textContent = summary;
     const arrow = document.createElement("b");
@@ -83,6 +88,7 @@ export class ProgressPanel {
         <progress max="${rank.needed}" value="${rank.current}" aria-label="XP"></progress>
         <div class="starting-bonus">+${rank.startingCoins} · ${t.startingBonus}</div>
       </section>
+      <section class="shift-card"><strong>${t.shift(shift.stage)} / 10</strong><p>${shift.remaining ? t.nextShift(shift.remaining) : t.finalShift}</p><small>${t.shiftHint}</small></section>
       <h2>${t.dailyTitle}</h2><p class="daily-hint">${t.dailyHint}</p>
       <div class="missions">${missions.map((mission) => `
         <section class="mission ${mission.done ? 'done' : ''}">
@@ -92,6 +98,6 @@ export class ProgressPanel {
         </section>`).join('')}</div>
       <p class="daily-hint">${t.permanentHint}</p>
       <button type="button" class="play-button">${this.first ? startText : t.continueGame}</button>`;
-    this.dialog.querySelector(".play-button")?.addEventListener("click", () => this.close());
+    this.dialog.querySelector(".play-button")?.addEventListener("click", () => { void yandexService.requestFullscreen(); this.close(); });
   }
 }

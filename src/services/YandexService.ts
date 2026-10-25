@@ -36,6 +36,8 @@ type Ysdk = {
     GameplayAPI?: { start: () => void; stop: () => void };
   };
   environment?: { i18n?: { lang?: string } };
+  deviceInfo?: { type?: "desktop" | "mobile" | "tablet" | "tv"; isMobile?: () => boolean; isTablet?: () => boolean };
+  screen?: { fullscreen?: { status?: string; request: () => Promise<void> } };
   on?: (event: "game_api_pause" | "game_api_resume", callback: () => void) => void;
   getPlayer: (opts?: { scopes?: boolean }) => Promise<YaPlayer>;
   getStorage?: () => Promise<StorageLike>;
@@ -135,6 +137,7 @@ export class YandexService {
   private saveTimer: number | null = null;
   private saving = false;
   private lastCloudSave = 0;
+  private fullscreenPending = false;
 
   onPlatformPause(handler: () => void): () => void {
     this.pauseHandlers.add(handler);
@@ -200,6 +203,42 @@ export class YandexService {
     }
     this.ysdk.features?.GameplayAPI?.stop();
     this.gameplayOn = false;
+  }
+
+  /** Call directly from Start/Continue or a fullscreen button, never from boot. */
+  async requestFullscreen(): Promise<void> {
+    const device = this.ysdk?.deviceInfo;
+    const mobile = device?.type
+      ? device.type === "mobile" || device.type === "tablet"
+      : Boolean(device?.isMobile?.() || device?.isTablet?.() ||
+        (navigator.maxTouchPoints > 0 && window.matchMedia("(pointer: coarse)").matches));
+    const doc = document as Document & { webkitFullscreenElement?: Element };
+    if (!mobile || document.hidden || this.fullscreenPending || document.fullscreenElement ||
+      doc.webkitFullscreenElement || this.ysdk?.screen?.fullscreen?.status === "on" ||
+      navigator.userActivation?.isActive === false) return;
+
+    this.fullscreenPending = true;
+    try {
+      const sdkFullscreen = this.ysdk?.screen?.fullscreen;
+      if (sdkFullscreen?.request) {
+        try {
+          await sdkFullscreen.request();
+          return;
+        } catch {
+          // A denied/unsupported platform request may still have a native fallback.
+        }
+      }
+      const element = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => void | Promise<void> };
+      if (element.requestFullscreen) {
+        await element.requestFullscreen({ navigationUI: "hide" });
+      } else if (element.webkitRequestFullscreen) {
+        await element.webkitRequestFullscreen();
+      }
+    } catch {
+      // Permission, iframe policy or browser support must never block play.
+    } finally {
+      this.fullscreenPending = false;
+    }
   }
 
   async showRewardedAd(): Promise<{ rewarded: boolean }> {

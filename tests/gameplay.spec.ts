@@ -10,14 +10,19 @@ test('real pointer sorting, pause, and progress survive reload', async ({ page }
   await page.getByRole('button', { name: 'Начать сортировку', exact: true }).click();
   const layout = await page.evaluate(async () => {
     const { computeLayout } = await import('/src/game/layout.ts');
-    return computeLayout(innerWidth, innerHeight, ['red', 'blue', 'yellow']);
+    const rect = document.querySelector('canvas')!.getBoundingClientRect();
+    return computeLayout(rect.width, rect.height, ['red', 'blue', 'yellow']);
   });
-  // Stop at the first stable visible shape, then drag with a real pointer.
-  await page.waitForTimeout(1400);
+  // Let the first shape move fully into the visible belt, then use a real pointer.
+  await page.waitForTimeout(1800);
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
-  // First spawn ~.85s, moving at 140px/s. Grab padding absorbs timing variance.
-  await page.mouse.move(layout.belt.x - layout.itemSize * .35 + 140 * .55, layout.belt.y + layout.belt.height / 2);
+  const speed = await page.evaluate(async (layout) => {
+    const { conveyorPace } = await import('/src/game/difficulty.ts');
+    const { emptyLevels } = await import('/src/game/upgrades.ts');
+    return conveyorPace(0,emptyLevels(),layout.belt.width,layout.itemSize).speed;
+  }, layout);
+  await page.mouse.move(layout.belt.x - layout.itemSize * .35 + speed * .95, layout.belt.y + layout.belt.height / 2);
   await page.mouse.down();
   const bin = layout.bins[0];
   await page.mouse.move(bin.x + bin.width / 2, bin.y + 80, { steps: 5 });
@@ -132,16 +137,22 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
 test('touch drag sorts a shape on a mobile viewport', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   const page = await context.newPage();
-  await page.addInitScript(() => { Math.random = () => 0; });
+  await page.addInitScript(() => { Math.random = () => 0; Element.prototype.requestFullscreen = async () => {}; });
   await page.goto('/');
   await page.getByRole('button', { name: 'Начать сортировку', exact: true }).tap();
   const l = await page.evaluate(async () => {
     const { computeLayout } = await import('/src/game/layout.ts');
-    return computeLayout(innerWidth, innerHeight, ['red', 'blue', 'yellow']);
+    const rect = document.querySelector('canvas')!.getBoundingClientRect();
+    return computeLayout(rect.width, rect.height, ['red', 'blue', 'yellow']);
   });
-  await page.waitForTimeout(1400);
+  await page.waitForTimeout(1800);
+  const speed = await page.evaluate(async (layout) => {
+    const { conveyorPace } = await import('/src/game/difficulty.ts');
+    const { emptyLevels } = await import('/src/game/upgrades.ts');
+    return conveyorPace(0,emptyLevels(),layout.belt.width,layout.itemSize).speed;
+  }, l);
   const cdp = await context.newCDPSession(page);
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: l.belt.x - l.itemSize * .35 + 77, y: l.belt.y + l.belt.height / 2 }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: l.belt.x - l.itemSize * .35 + speed * .95, y: l.belt.y + l.belt.height / 2 }] });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: l.bins[0].x + l.bins[0].width/2, y: l.bins[0].y + 80 }] });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('sortup-records') || '{}').progression?.totalSorted)).toBe(1);

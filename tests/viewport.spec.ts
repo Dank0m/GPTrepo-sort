@@ -40,3 +40,50 @@ test('320px hint text is constrained to belt width', async ({ page }) => {
   expect(maxWidth).toBeGreaterThan(0);
   expect(maxWidth).toBeLessThan(320);
 });
+
+for (const viewport of [{ width:568,height:320 }, { width:560,height:320 }, { width:320,height:320 }]) {
+  test(`short viewport keeps six bins, shop and reward controls separate at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.goto('/?mockAds=1');
+    await page.getByRole('button',{name:'Начать сортировку',exact:true}).click();
+    const geometry = await page.evaluate(async () => {
+      const { computeLayout } = await import('/src/game/layout.ts');
+      const { dumpOfferUi, gameOverUi } = await import('/src/game/adLayout.ts');
+      const l = computeLayout(innerWidth,innerHeight,['red','blue','yellow','green','purple','orange'],{freeCoins:true});
+      const offer = dumpOfferUi(innerWidth,innerHeight);
+      const gameOver = gameOverUi(innerWidth,innerHeight,{record:true});
+      const all = [l.hud,l.progress,l.belt,...l.bins,...l.shopButtons,l.freeCoins!,offer.box,offer.doubleBtn,offer.dismissBtn,gameOver.box,gameOver.restartBtn];
+      const band = document.querySelector('.progress-strip')!;
+      return {
+        inside: all.every(r => r.x>=0&&r.y>=0&&r.x+r.width<=innerWidth&&r.y+r.height<=innerHeight),
+        noOverlap: l.progress.y+l.progress.height<=l.belt.y && l.bins.every(b=>b.y>=l.belt.y+l.belt.height&&b.y+b.height<=l.shop.y),
+        usableBins: l.bins.every(b=>b.width>=40&&b.height>=30),
+        stripFits:band.scrollHeight<=band.clientHeight,
+      };
+    });
+    expect(geometry).toEqual({inside:true,noOverlap:true,usableBins:true,stripFits:true});
+  });
+}
+
+test('narrow rewarded shop label fits its button and retains ad and reward labels', async ({ page }) => {
+  await page.setViewportSize({width:568,height:320});
+  await page.goto('/?mockAds=1');
+  await page.getByRole('button',{name:'Начать сортировку',exact:true}).click();
+  const labels = await page.evaluate(async () => {
+    const { World } = await import('/src/game/world.ts');
+    const { emptyRecords } = await import('/src/game/save.ts');
+    const { drawShop } = await import('/src/render/shop.ts');
+    const w=new World(innerWidth,innerHeight,emptyRecords());w.resume();
+    const button=w.layout.freeCoins!;
+    const ctx=document.createElement('canvas').getContext('2d')!;
+    const original=ctx.fillText.bind(ctx);const calls:any[]=[];
+    ctx.fillText=(text,x,y,maxWidth)=>{
+      if(x===button.x+button.width/2) calls.push({text,maxWidth,measured:ctx.measureText(text).width});
+      if(maxWidth===undefined) original(text,x,y);else original(text,x,y,maxWidth);
+    };
+    drawShop(ctx,w);
+    return {calls,width:button.width};
+  });
+  expect(labels.calls.map(call=>call.text)).toEqual(['Монеты','реклама','+500']);
+  expect(labels.calls.every(call=>Math.min(call.measured,call.maxWidth??Infinity)<=labels.width-8)).toBe(true);
+});

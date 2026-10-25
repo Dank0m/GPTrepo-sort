@@ -13,6 +13,7 @@ import {
 import { sfx } from "../audio/sfx.ts";
 import { loadSession, saveRecords, saveSession, type Records, type SessionSave } from "./save.ts";
 import { advanceProgression, rankInfo, sanitizeProgression } from "./progression.ts";
+import { conveyorPace, shiftDifficulty } from "./difficulty.ts";
 import { createBin, type Bin } from "./bin.ts";
 import { Fx } from "./fx.ts";
 import { hitBin, hitItem, pointInRect } from "./hit.ts";
@@ -25,11 +26,8 @@ import { yandexService } from "../services/YandexService.ts";
 import {
   activeTypes,
   autoInterval,
-  beltSpeed,
   coinValue,
   emptyLevels,
-  minGap,
-  spawnInterval,
   type UpgradeLevels,
 } from "./upgrades.ts";
 
@@ -97,6 +95,14 @@ export class World implements AdHost {
     const session = loadSession();
     if (session) this.restoreSession(session);
     this.paused = true;
+  }
+
+  get shift(): ReturnType<typeof shiftDifficulty> {
+    return shiftDifficulty(this.sortedCount);
+  }
+
+  get pace(): ReturnType<typeof conveyorPace> {
+    return conveyorPace(this.sortedCount, this.levels, this.layout.belt.width, this.layout.itemSize);
   }
 
   restart(): void {
@@ -280,6 +286,7 @@ export class World implements AdHost {
       return false;
     }
     if (this.status === "over") {
+      void yandexService.requestFullscreen();
       this.restart();
       return false;
     }
@@ -627,7 +634,7 @@ export class World implements AdHost {
     const belt = this.layout.belt;
     const centerY = belt.y + belt.height / 2;
     const endX = belt.x + belt.width + this.layout.itemSize;
-    const speed = beltSpeed(this.levels);
+    const speed = this.pace.speed;
     const kept: Item[] = [];
 
     for (const item of this.items) {
@@ -757,7 +764,11 @@ export class World implements AdHost {
     }
     this.applyCorrect();
     this.setFeedback(bin.type, "correct");
+    const previousStage = this.shift.stage;
     this.sortedCount += 1;
+    if (this.shift.stage > previousStage) {
+      this.fx.float(this.layout.width / 2, this.layout.belt.y + 20, strings().shift(this.shift.stage), COLORS.gold, 22, 1.7);
+    }
     const cx = slot ? slot.x + slot.width / 2 : item.x;
     const cy = slot ? slot.y + slot.height * 0.35 : item.y;
     this.fx.burst(cx, cy, COLORS.item[bin.type], fromHand ? 14 : 18);
@@ -821,12 +832,12 @@ export class World implements AdHost {
     if (this.status !== "playing") {
       return false;
     }
-    if (this.spawnTimer < spawnInterval(this.levels)) {
+    if (this.spawnTimer < this.pace.interval) {
       return false;
     }
     const belt = this.layout.belt;
     const spawnX = belt.x - this.layout.itemSize * 0.35;
-    const gap = minGap(this.levels);
+    const gap = this.pace.gap;
     return this.items.every((item) => {
       if (item.state !== ITEM_STATE.OnBelt) {
         return true;

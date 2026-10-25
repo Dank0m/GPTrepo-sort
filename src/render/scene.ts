@@ -2,7 +2,6 @@ import { COLORS, ITEM_STATE, type ItemType } from "../config.ts";
 import { strings } from "../i18n/locale.ts";
 import type { CanvasSurface } from "../core/canvas.ts";
 import { drawDebugOverlay } from "../debug/overlay.ts";
-import { beltSpeed } from "../game/upgrades.ts";
 import { drawAdsOverlay, drawDumpOffer, drawGameOver, drawHint, drawHud, drawPause } from "./hud.ts";
 import { drawShop } from "./shop.ts";
 import type { Item } from "../game/item.ts";
@@ -25,7 +24,7 @@ export function drawScene(
 
   drawTable(ctx, layout);
 
-  drawBelt(ctx, layout.belt, world.elapsed, beltSpeed(world.levels));
+  drawBelt(ctx, layout.belt, world.elapsed, world.pace.speed);
   drawBins(ctx, layout.bins, world);
   drawItems(ctx, world.items);
   drawParticles(ctx, world);
@@ -169,7 +168,7 @@ function drawBins(
     const iconX = slot.x + slot.width / 2;
     const compact = slot.width < 78 || slot.height < 92;
     const iconY = slot.y + slot.height * (compact ? 0.42 : 0.38);
-    drawTypeShape(ctx, slot.type, iconX, iconY, Math.min(compact ? 22 : 38, slot.width * 0.28));
+    drawTypeShape(ctx, slot.type, iconX, iconY, Math.min(compact ? 22 : 38, slot.width * 0.28, slot.height * 0.24));
 
     if (!compact) {
       ctx.fillStyle = COLORS.title;

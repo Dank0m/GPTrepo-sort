@@ -45,7 +45,7 @@ export function drawShop(ctx: CanvasRenderingContext2D, world: World): void {
     ctx.textBaseline = "middle";
     ctx.fillStyle = COLORS.title;
     ctx.font = `700 ${compact ? 11 : 13}px ui-rounded, system-ui, sans-serif`;
-    ctx.fillText(strings().upgrades[button.id], cx, button.y + button.height * (compact ? 0.26 : 0.28));
+    ctx.fillText(strings().upgrades[button.id], cx, button.y + button.height * (compact ? 0.26 : 0.28), button.width - 12);
 
     ctx.fillStyle = COLORS.muted;
     ctx.font = `${compact ? 10 : 11}px ui-rounded, system-ui, sans-serif`;
@@ -82,7 +82,7 @@ function drawFreeCoins(ctx: CanvasRenderingContext2D, world: World): void {
   ctx.fillStyle = COLORS.title;
   ctx.font = `700 ${compact ? 11 : 13}px ui-rounded, system-ui, sans-serif`;
   const t = strings();
-  ctx.fillText(compact ? t.freeCoinsShort : t.freeCoins, cx, button.y + button.height * (compact ? 0.26 : 0.28));
+  ctx.fillText(compact || button.width < 150 ? t.freeCoinsShort : t.freeCoins, cx, button.y + button.height * (compact ? 0.26 : 0.28), button.width - 12);
 
   if (wait > 0) {
     ctx.fillStyle = COLORS.muted;

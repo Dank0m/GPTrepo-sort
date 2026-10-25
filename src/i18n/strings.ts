@@ -3,6 +3,10 @@ import type { ItemType, UpgradeId } from "../config.ts";
 export type Locale = "ru" | "en";
 
 export type Strings = {
+  shift: (stage: number) => string;
+  nextShift: (count: number) => string;
+  finalShift: string;
+  shiftHint: string;
   progress: string;
   mastery: string;
   rankUp: string;
@@ -55,6 +59,10 @@ export type Strings = {
 
 export const STRINGS: Record<Locale, Strings> = {
   ru: {
+    shift: (stage) => `Смена ${stage}`,
+    nextShift: (count) => `До следующей смены: ${count} фигур`,
+    finalShift: "Максимальный темп — удержи рекорд!",
+    shiftHint: "Ты управляешь сортировочной линией. Каждые 20 верных сортировок поток ускоряется — до 10-й смены. Рост сложности не требует покупок или рекламы.",
     progress: "Мой прогресс",
     mastery: "Мастерство",
     rankUp: "Новый уровень мастерства!",
@@ -118,6 +126,10 @@ export const STRINGS: Record<Locale, Strings> = {
     },
   },
   en: {
+    shift: (stage) => `Shift ${stage}`,
+    nextShift: (count) => `${count} shapes to the next shift`,
+    finalShift: "Top pace — keep your record going!",
+    shiftHint: "Run your own sorting line. Every 20 correct sorts speed up the conveyor, up to shift 10. Difficulty grows without purchases or ads.",
     progress: "My progress",
     mastery: "Mastery",
     rankUp: "Mastery level up!",
