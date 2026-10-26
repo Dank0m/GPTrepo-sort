@@ -1,4 +1,4 @@
-import { BIN_CAPACITY, UPGRADE_IDS, type ItemType, type UpgradeId } from "../config.ts";
+import { BIN_CAPACITY, type ItemType } from "../config.ts";
 
 export type Rect = {
   x: number;
@@ -12,10 +12,6 @@ export type BinLayout = Rect & {
   capacity: number;
 };
 
-export type ShopButtonLayout = Rect & {
-  id: UpgradeId;
-};
-
 export type PlayfieldLayout = {
   width: number;
   height: number;
@@ -27,8 +23,8 @@ export type PlayfieldLayout = {
   belt: Rect;
   bins: BinLayout[];
   shop: Rect;
-  shopButtons: ShopButtonLayout[];
-  freeCoins: Rect | null;
+  treeButton: Rect;
+  groupButton: Rect;
   itemSize: number;
   narrow: boolean;
 };
@@ -41,7 +37,6 @@ export function computeLayout(
   width: number,
   height: number,
   types: readonly ItemType[],
-  options: { freeCoins?: boolean } = {},
 ): PlayfieldLayout {
   const short = height < 400;
   const pad = short ? 8 : clamp(Math.min(width, height) * 0.04, 10, 28);
@@ -75,9 +70,7 @@ export function computeLayout(
     height: muteSize,
   };
 
-  const shopRows = narrow ? 2 : 1;
-  const shopHeight =
-    short ? (shopRows === 2 ? 92 : 64) : shopRows === 2 ? clamp(height * 0.2, 108, 148) : clamp(height * 0.135, 72, 96);
+  const shopHeight = short ? 44 : 56;
   const shop: Rect = {
     x: pad,
     y: height - pad - shopHeight,
@@ -125,7 +118,8 @@ export function computeLayout(
     };
   });
 
-  const shopButtons = layoutShopButtons(shop, shopRows, Boolean(options.freeCoins));
+  const treeButton: Rect = { ...shop, width: shop.width * .62 - 4 };
+  const groupButton: Rect = { ...shop, x: shop.x + shop.width * .62 + 4, width: shop.width * .38 - 4 };
 
   return {
     width,
@@ -138,77 +132,9 @@ export function computeLayout(
     belt,
     bins,
     shop,
-    shopButtons: shopButtons.upgrades,
-    freeCoins: shopButtons.freeCoins,
+    treeButton,
+    groupButton,
     itemSize: clamp(beltHeight * 0.58, 34, 64),
     narrow,
   };
-}
-
-function layoutShopButtons(
-  shop: Rect,
-  rows: number,
-  showFreeCoins: boolean,
-): { upgrades: ShopButtonLayout[]; freeCoins: Rect | null } {
-  const gap = 8;
-  if (rows === 1) {
-    const count = UPGRADE_IDS.length + (showFreeCoins ? 1 : 0);
-    const buttonW = (shop.width - gap * (count - 1)) / count;
-    const upgrades = UPGRADE_IDS.map((id, index) => ({
-      id,
-      x: shop.x + index * (buttonW + gap),
-      y: shop.y,
-      width: buttonW,
-      height: shop.height,
-    }));
-    const freeCoins = showFreeCoins
-      ? {
-          x: shop.x + UPGRADE_IDS.length * (buttonW + gap),
-          y: shop.y,
-          width: buttonW,
-          height: shop.height,
-        }
-      : null;
-    return { upgrades, freeCoins };
-  }
-
-  const rowH = (shop.height - gap) / 2;
-  const top = UPGRADE_IDS.slice(0, 3);
-  const bottom = UPGRADE_IDS.slice(3);
-  const upgrades = [
-    ...rowOf(top, shop.x, shop.y, shop.width, rowH, gap),
-    ...rowOf(bottom, shop.x, shop.y + rowH + gap, shop.width, rowH, gap, showFreeCoins ? 1 : 0),
-  ];
-  let freeCoins: Rect | null = null;
-  if (showFreeCoins) {
-    const slots = bottom.length + 1;
-    const buttonW = (shop.width - gap * (slots - 1)) / slots;
-    freeCoins = {
-      x: shop.x + bottom.length * (buttonW + gap),
-      y: shop.y + rowH + gap,
-      width: buttonW,
-      height: rowH,
-    };
-  }
-  return { upgrades, freeCoins };
-}
-
-function rowOf(
-  ids: readonly UpgradeId[],
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  gap: number,
-  extraSlots = 0,
-): ShopButtonLayout[] {
-  const slots = ids.length + extraSlots;
-  const buttonW = (width - gap * (slots - 1)) / slots;
-  return ids.map((id, index) => ({
-    id,
-    x: x + index * (buttonW + gap),
-    y,
-    width: buttonW,
-    height,
-  }));
 }

@@ -70,18 +70,19 @@ test('world rules: correct, wrong, full bins, jackpot, game over, and permanent 
     const over = { status: w.status, games: w.records.gamesPlayed };
     w.restart();
     const restart = { status: w.status, games: w.records.gamesPlayed, xp: w.records.progression.xp };
+    w.coins = 45;
     const before = w.coins;
     const bought = w.tryBuy("value");
     const upgrade = { bought, level: w.levels.value, spent: before - w.coins };
     return { correct, wrong, full, jackpot, over, restart, upgrade };
   });
-  expect(result.correct).toEqual({ combo: 1, coins: 10, xp: 2 });
+  expect(result.correct).toEqual({ combo: 1, coins: 3, xp: 2 });
   expect(result.wrong).toEqual({ combo: 0, lives: 2 });
   expect(result.full).toEqual({ lives: 2, state: 'onBelt' });
   expect(result.jackpot).toEqual({ cleared: true, sets: 1, claimed: ['set'] });
   expect(result.over).toEqual({ status: 'over', games: 1 });
   expect(result.restart).toEqual({ status: 'playing', games: 1, xp: 149 });
-  expect(result.upgrade).toEqual({ bought: true, level: 1, spent: 40 });
+  expect(result.upgrade).toEqual({ bought: true, level: 1, spent: 45 });
 });
 
 test('autosort does not farm manual XP; spawn avoids full bins; background freezes offers', async ({ page }) => {
@@ -128,7 +129,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     const geometry = await page.evaluate(async () => {
       const { computeLayout } = await import('/src/game/layout.ts');
       const l = computeLayout(innerWidth, innerHeight, ['red','blue','yellow','green','purple','orange'], { freeCoins: true });
-      return { inside: [l.hud, l.progress, l.belt, ...l.bins, ...l.shopButtons].every(r => r.x >= 0 && r.y >= 0 && r.x+r.width <= innerWidth+1 && r.y+r.height <= innerHeight+1), overlap: l.progress.y+l.progress.height > l.belt.y, scroll: document.documentElement.scrollWidth > innerWidth };
+      return { inside: [l.hud, l.progress, l.belt, ...l.bins, l.treeButton,l.groupButton].every(r => r.x >= 0 && r.y >= 0 && r.x+r.width <= innerWidth+1 && r.y+r.height <= innerHeight+1), overlap: l.progress.y+l.progress.height > l.belt.y, scroll: document.documentElement.scrollWidth > innerWidth };
     });
     expect(geometry).toEqual({ inside: true, overlap: false, scroll: false });
   });

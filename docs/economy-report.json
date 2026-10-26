@@ -1,0 +1,105 @@
+{
+  "assumptions": "Perfect manual sorting, balanced bin types, no rewarded ads, daily rewards at most once; this is an income model, not measured player retention.",
+  "base": [
+    {
+      "correctSorts": 24,
+      "earned": 172,
+      "wallet": 32,
+      "wideAt": 24,
+      "buys": [
+        {
+          "sort": 12,
+          "id": "buffer",
+          "cost": 40
+        },
+        {
+          "sort": 24,
+          "id": "wide",
+          "cost": 100
+        }
+      ]
+    },
+    {
+      "correctSorts": 120,
+      "earned": 725,
+      "wallet": 585,
+      "wideAt": 24,
+      "buys": [
+        {
+          "sort": 12,
+          "id": "buffer",
+          "cost": 40
+        },
+        {
+          "sort": 24,
+          "id": "wide",
+          "cost": 100
+        }
+      ]
+    },
+    {
+      "correctSorts": 600,
+      "earned": 3365,
+      "wallet": 3225,
+      "wideAt": 24,
+      "buys": [
+        {
+          "sort": 12,
+          "id": "buffer",
+          "cost": 40
+        },
+        {
+          "sort": 24,
+          "id": "wide",
+          "cost": 100
+        }
+      ]
+    }
+  ],
+  "dailyAlreadyClaimed": {
+    "correctSorts": 120,
+    "earned": 650,
+    "wallet": 510,
+    "wideAt": 29,
+    "buys": [
+      {
+        "sort": 13,
+        "id": "buffer",
+        "cost": 40
+      },
+      {
+        "sort": 29,
+        "id": "wide",
+        "cost": 100
+      }
+    ]
+  },
+  "maxTree": [
+    {
+      "correctSorts": 120,
+      "earned": 1119,
+      "wallet": 1119,
+      "wideAt": null,
+      "buys": []
+    },
+    {
+      "correctSorts": 600,
+      "earned": 5679,
+      "wallet": 5679,
+      "wideAt": null,
+      "buys": []
+    }
+  ],
+  "totalTreeCost": 2955,
+  "old120": 78600,
+  "old600": 1830600,
+  "limits": {
+    "manualBase3Max4": true,
+    "manualAllSkillsMax8": true,
+    "automaticMax2": true,
+    "fullSet36to72": true,
+    "dailyTotal75": true,
+    "restartCarryCap20": true,
+    "masteryStartCap10": true
+  }
+}

@@ -37,7 +37,7 @@ export function drawHud(ctx: CanvasRenderingContext2D, world: World): void {
   ctx.textAlign = "center";
   ctx.fillStyle = world.combo > 0 ? COLORS.title : COLORS.muted;
   ctx.font = `700 ${narrow ? 15 : 17}px ui-rounded, system-ui, sans-serif`;
-  const combo = world.combo > 0 ? `×${world.combo}` : "×0";
+  const combo = world.combo > 0 ? `${world.combo}` : "0";
   ctx.fillText(narrow ? combo : `${t.combo}  ${combo}`, hud.x + hud.width * (narrow ? 0.48 : 0.42), cy);
   if (world.lastGain > 0 && world.combo > 0) {
     ctx.fillStyle = COLORS.gold;
@@ -109,8 +109,8 @@ export function drawGameOver(ctx: CanvasRenderingContext2D, world: World, width:
   ctx.fillStyle = COLORS.muted;
   ctx.font = "15px ui-rounded, system-ui, sans-serif";
   const comboLine = world.beatBestCombo
-    ? `${t.maxCombo}  ×${world.maxCombo}  •  ${t.maxComboRecord}`
-    : `${t.maxCombo}  ×${world.maxCombo}`;
+    ? `${t.maxCombo}  ${world.maxCombo}  •  ${t.maxComboRecord}`
+    : `${t.maxCombo}  ${world.maxCombo}`;
   ctx.fillText(comboLine, width / 2, ui.box.y + (world.beatBestCoins ? 126 : 118));
   ctx.fillText(`${t.bestScore}  ${world.records.bestCoins}`, width / 2, ui.box.y + (world.beatBestCoins ? 150 : 142));
 

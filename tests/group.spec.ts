@@ -7,7 +7,7 @@ test('wide grab moves only selected belt items, preserves spacing, and returns m
  const result=await page.evaluate(async()=>{
   const {World}=await import('/src/game/world.ts');const {emptyRecords}=await import('/src/game/save.ts');
   const {createItem}=await import('/src/game/item.ts');const {INPUT}=await import('/src/config.ts');
-  const w=new World(800,700,emptyRecords());w.resume();const y=w.layout.belt.y+w.layout.belt.height/2;
+  const w=new World(800,700,emptyRecords());w.levels.buffer=1;w.levels.wide=1;w.resume();const y=w.layout.belt.y+w.layout.belt.height/2;
   const a=createItem('red',180,y,50),b=createItem('red',250,y,50),c=createItem('blue',310,y,50),far=createItem('yellow',600,y,50);
   w.items=[a,b,c,far];w.bins[0].filled=7;
   const selected=w.pointerDown(240,y,2);const count=w.groupGrab?.entries.length;
@@ -25,14 +25,14 @@ test('pause, ad, resize and cancel release the whole group; right click never bu
   const {World}=await import('/src/game/world.ts');const {emptyRecords}=await import('/src/game/save.ts');const {createItem}=await import('/src/game/item.ts');
   const outcomes=[];
   for(const action of ['pause','ad','resize','cancel']){
-   localStorage.removeItem('sortup-session-v1');const w=new World(800,700,emptyRecords());w.resume();
+   localStorage.removeItem('sortup-session-v1');const w=new World(800,700,emptyRecords());w.levels.buffer=1;w.levels.wide=1;w.resume();
    const y=w.layout.belt.y+40;w.items=[createItem('red',150,y,50),createItem('blue',220,y,50)];
    w.pointerDown(180,y,2);
    if(action==='pause')w.pause();if(action==='ad')w.beginAd();if(action==='resize')w.resize(900,700);if(action==='cancel')w.pointerCancel();
    outcomes.push(w.groupGrab===null&&w.grabbed===null&&w.items.every(i=>i.state==='onBelt'));
   }
-  localStorage.removeItem('sortup-session-v1');const w=new World(800,700,emptyRecords());w.resume();w.coins=1000;
-  const shop=w.layout.shopButtons[0];w.pointerDown(shop.x+10,shop.y+10,2);
+  localStorage.removeItem('sortup-session-v1');const w=new World(800,700,emptyRecords());w.levels.buffer=1;w.levels.wide=1;w.resume();w.coins=1000;
+  const shop=w.layout.treeButton;w.pointerDown(shop.x+10,shop.y+10,2);
   return {outcomes,coins:w.coins,speed:w.levels.speed};
  });
  expect(result).toEqual({outcomes:[true,true,true,true],coins:1000,speed:0});
@@ -42,7 +42,7 @@ test('production reserves slots for queued and held shapes, and avoids extra fig
  await ready(page);
  const result=await page.evaluate(async()=>{
   const {World}=await import('/src/game/world.ts');const {emptyRecords}=await import('/src/game/save.ts');const {createItem}=await import('/src/game/item.ts');
-  const w=new World(800,700,emptyRecords());w.resume();w.bins[0].filled=7;
+  const w=new World(800,700,emptyRecords());w.levels.buffer=1;w.levels.wide=1;w.resume();w.bins[0].filled=7;
   w.items=[createItem('red',500,w.layout.belt.y+40,50)];
   Math.random=()=>0;w.update(1);
   const spawned=w.items.map(i=>i.type);
@@ -58,10 +58,10 @@ test('real right-button pointer events capture and sort multiple items without c
  await ready(page);
  await page.evaluate(async()=>{
   const {App}=await import('/src/core/app.ts');const {emptyRecords}=await import('/src/game/save.ts');const {createItem}=await import('/src/game/item.ts');
-  document.querySelector('dialog')?.remove();document.querySelector('.progress-strip')?.remove();
+  document.querySelector('dialog[open]')?.remove();document.querySelector('.progress-strip')?.remove();
   const canvas=document.createElement('canvas');canvas.style.zIndex='50';document.body.append(canvas);
-  const app=new App(canvas,emptyRecords());app.start();document.querySelector('dialog')?.remove();
-  const w=(app as any).world;w.resume();w.update=()=>{};
+  const app=new App(canvas,emptyRecords());app.start();document.querySelector('dialog[open]')?.remove();
+  const w=(app as any).world;w.levels.buffer=1;w.levels.wide=1;w.resume();w.update=()=>{};
   const y=w.layout.belt.y+w.layout.belt.height/2;w.items=[createItem('red',180,y,50),createItem('red',250,y,50)];
   (window as any).__groupWorld=w;(window as any).__groupCanvas=canvas;
  });
@@ -76,7 +76,7 @@ test('right-drag back to the belt keeps spacing at the left boundary without sor
  await ready(page);
  const result=await page.evaluate(async()=>{
   const {World}=await import('/src/game/world.ts');const {emptyRecords}=await import('/src/game/save.ts');const {createItem}=await import('/src/game/item.ts');
-  const w=new World(800,700,emptyRecords());w.resume();const y=w.layout.belt.y+w.layout.belt.height/2;
+  const w=new World(800,700,emptyRecords());w.levels.buffer=1;w.levels.wide=1;w.resume();const y=w.layout.belt.y+w.layout.belt.height/2;
   const a=createItem('red',220,y,50),b=createItem('blue',290,y,50);w.items=[a,b];
   w.pointerDown(250,y,2);w.pointerMove(20,y);w.pointerUp(20,y);
   return {spacing:b.x-a.x,leftInside:a.x-a.size/2>=w.layout.belt.x-1e-8,onBelt:w.items.every(i=>i.state==='onBelt'),sorted:w.sortedCount,lives:w.lives};

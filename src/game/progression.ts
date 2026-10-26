@@ -29,9 +29,9 @@ export type Mission = {
 };
 
 const DEFINITIONS = [
-  { id: "sort", field: "sorted", target: 30, rewardXp: 75, rewardCoins: 150 },
-  { id: "combo", field: "bestCombo", target: 12, rewardXp: 100, rewardCoins: 200 },
-  { id: "set", field: "sets", target: 1, rewardXp: 125, rewardCoins: 250 },
+  { id: "sort", field: "sorted", target: 30, rewardXp: 75, rewardCoins: 25 },
+  { id: "combo", field: "bestCombo", target: 12, rewardXp: 100, rewardCoins: 20 },
+  { id: "set", field: "sets", target: 1, rewardXp: 125, rewardCoins: 30 },
 ] as const;
 
 function count(value: unknown): number {
@@ -113,7 +113,7 @@ export function rankInfo(xp: number): {
     level,
     current: safeXp - previous,
     needed: next - previous,
-    startingCoins: Math.min(100, (level - 1) * 10),
+    startingCoins: Math.min(10, (level - 1) * 2),
   };
 }
 

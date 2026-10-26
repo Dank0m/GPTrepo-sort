@@ -2,8 +2,6 @@
 export const PHASE = 7;
 
 export const ADS = {
-  freeCoins: 500,
-  freeCoinsCooldown: 90,
   dumpOfferSeconds: 5,
   mockDelayMs: 650,
 } as const;
@@ -58,34 +56,38 @@ export const AUTO_SORT = {
 } as const;
 
 export const ECONOMY = {
-  coinValue: 10,
+  coinValue: 3,
   startLives: 3,
-  /** Share of coins kept when a new session starts after game over. */
   rebirthKeep: 0.1,
-  /** Jackpot when every bin is full, then fills reset. Scales with type count. */
-  dumpBonus: (typeCount: number) => 120 * typeCount * typeCount,
+  rebirthCap: 20,
+  dumpBonus: (typeCount: number) => 12 * typeCount,
 } as const;
 
-export const UPGRADE_IDS = ["speed", "value", "type", "auto", "buffer"] as const;
+export const UPGRADE_IDS = ["buffer", "wide", "magnet", "unload", "speed", "auto", "batch", "pulse", "recycle", "value", "combo", "type"] as const;
 export type UpgradeId = (typeof UPGRADE_IDS)[number];
+export type UpgradeBranch = "control" | "automation" | "orders";
+export type UpgradeDefinition = {
+  max: number; costs: readonly number[]; branch: UpgradeBranch;
+  requires?: { id: UpgradeId; level: number };
+};
 
-export const UPGRADES: Record<
-  UpgradeId,
-  { label: string; max: number; base: number; ratio: number }
-> = {
-  speed: { label: "Скорость", max: 4, base: 30, ratio: 2.5 },
-  value: { label: "Ценность", max: 3, base: 40, ratio: 2.5 },
-  type: { label: "Тип", max: 3, base: 80, ratio: 2.5 },
-  auto: { label: "Автосорт", max: 3, base: 50, ratio: 2.5 },
-  buffer: { label: "Буфер", max: 3, base: 25, ratio: 2.5 },
+export const UPGRADES: Record<UpgradeId, UpgradeDefinition> = {
+  buffer: { max: 2, costs: [40, 140], branch: "control" },
+  wide: { max: 2, costs: [100, 180], branch: "control", requires: { id: "buffer", level: 1 } },
+  magnet: { max: 1, costs: [130], branch: "control", requires: { id: "wide", level: 1 } },
+  unload: { max: 1, costs: [110], branch: "control", requires: { id: "buffer", level: 1 } },
+  speed: { max: 1, costs: [150], branch: "control", requires: { id: "buffer", level: 2 } },
+  auto: { max: 2, costs: [130, 260], branch: "automation" },
+  batch: { max: 1, costs: [170], branch: "automation", requires: { id: "auto", level: 1 } },
+  pulse: { max: 1, costs: [120], branch: "automation", requires: { id: "auto", level: 1 } },
+  recycle: { max: 1, costs: [230], branch: "automation", requires: { id: "batch", level: 1 } },
+  value: { max: 2, costs: [45, 180], branch: "orders" },
+  combo: { max: 2, costs: [90, 180], branch: "orders", requires: { id: "value", level: 1 } },
+  type: { max: 3, costs: [120, 220, 360], branch: "orders", requires: { id: "value", level: 1 } },
 };
 
 export function nextUpgradeCost(id: UpgradeId, level: number): number | null {
-  const def = UPGRADES[id];
-  if (level >= def.max) {
-    return null;
-  }
-  return Math.max(1, Math.round(def.base * def.ratio ** level));
+  return UPGRADES[id].costs[level] ?? null;
 }
 
 export const COLORS = {

@@ -17,13 +17,14 @@ test('records and paid upgrades survive reload before game over', async ({ page 
       const slot = w.layout.bins[0];
       w.pointerUp(slot.x + slot.width/2, slot.y + slot.height/2 + INPUT.dragLift);
     }
+    w.coins=60; // Fixed purchase budget; income has its own economy tests.
     const bought = w.tryBuy('value');
     return { bought, record: loadRecords(), session: loadSession() };
   });
   expect(first.bought).toBe(true);
-  expect(first.record.bestCoins).toBe(100);
+  expect(first.record.bestCoins).toBe(15);
   expect(first.record.bestCombo).toBe(4);
-  expect(first.session).toMatchObject({ coins: 60, combo: 4, maxCombo: 4, lives: 3, levels: { value: 1 }, bins: { red: 4 }, status: 'playing' });
+  expect(first.session).toMatchObject({ coins: 15, combo: 4, maxCombo: 4, lives: 3, levels: { value: 1 }, bins: { red: 4 }, status: 'playing' });
   await page.reload();
   await expect(page.getByRole('dialog')).toBeVisible();
   const restored = await page.evaluate(async () => {
@@ -33,7 +34,7 @@ test('records and paid upgrades survive reload before game over', async ({ page 
     return { coins: w.coins, combo: w.combo, value: w.levels.value, red: w.bins[0].filled,
       paused: w.paused, restored: w.restoredSession, items: w.items.length, beatCoins: w.beatBestCoins, beatCombo: w.beatBestCombo };
   });
-  expect(restored).toEqual({ coins: 60, combo: 4, value: 1, red: 4, paused: true, restored: true, items: 0, beatCoins: true, beatCombo: true });
+  expect(restored).toEqual({ coins: 15, combo: 4, value: 1, red: 4, paused: true, restored: true, items: 0, beatCoins: true, beatCombo: true });
 });
 
 test('jackpot and daily reward are durable and do not pay a second time on reconstruction', async ({ page }) => {
@@ -52,7 +53,7 @@ test('jackpot and daily reward are durable and do not pay a second time on recon
       sets: restored.records.progression.totalSets, claimed: restored.records.progression.daily.claimed,
       filled: restored.bins.map(b => b.filled), record: restored.records.bestCoins };
   });
-  expect(result).toEqual({ coins: 1330, savedCoins: 1330, restoredCoins: 1330, sets: 1, claimed: ['set'], filled: [0, 0, 0], record: 1330 });
+  expect(result).toEqual({ coins: 66, savedCoins: 66, restoredCoins: 66, sets: 1, claimed: ['set'], filled: [0, 0, 0], record: 66 });
 });
 
 test('in-flight autosort reservations are excluded from session progress', async ({ page }) => {
@@ -109,16 +110,16 @@ test('malformed session data cannot introduce invalid upgrades, bins, money or l
     const { sanitizeSession, loadSession } = await import('/src/game/save.ts');
     localStorage.setItem('sortup-session-v1', '{not valid JSON');
     const invalid = loadSession();
-    const normalized = sanitizeSession({ version: 1, status: 'playing', coins: Infinity, combo: -2, maxCombo: 4,
+    const normalized = sanitizeSession({ version: 2, status: 'playing', coins: Infinity, combo: -2, maxCombo: 4,
       manualCombo: 99, lives: 999, levels: { speed: 99, value: NaN, type: 2, auto: -3, buffer: '2' },
       bins: { red: 999, blue: -2, purple: 1, orange: 8 }, sortedCount: null });
-    return { invalid, wrongVersion: sanitizeSession({ version: 2 }), normalized };
+    return { invalid, wrongVersion: sanitizeSession({ version: 1 }), normalized };
   });
   expect(result.invalid).toBeNull();
   expect(result.wrongVersion).toBeNull();
   expect(result.normalized).toMatchObject({ coins: 0, combo: 0, maxCombo: 4, manualCombo: 0, lives: 3,
-    levels: { speed: 4, value: 0, type: 2, auto: 0, buffer: 0 },
-    bins: { red: 8, blue: 0, yellow: 0, green: 0, purple: 1 }, sortedCount: 0 });
+    levels: { speed: 0, value: 0, type: 0, auto: 0, buffer: 0 },
+    bins: { red: 8, blue: 0, yellow: 0 }, sortedCount: 0 });
   expect(result.normalized?.bins).not.toHaveProperty('orange');
 });
 

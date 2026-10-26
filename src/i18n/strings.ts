@@ -1,8 +1,10 @@
+import { TREE_TEXT } from "./tree.ts";
 import type { ItemType, UpgradeId } from "../config.ts";
 
 export type Locale = "ru" | "en";
 
 export type Strings = {
+  rescued: string;
   groupCount: (count: number) => string;
   groupHelp: string;
   shift: (stage: number) => string;
@@ -49,8 +51,6 @@ export type Strings = {
   adsHint: string;
   wait: string;
   ad: string;
-  freeCoins: string;
-  freeCoinsShort: string;
   miss: string;
   binFull: string;
   overflow: string;
@@ -61,8 +61,9 @@ export type Strings = {
 
 export const STRINGS: Record<Locale, Strings> = {
   ru: {
+    rescued: "Возврат!",
     groupCount: (count) => `Группа: ${count}`,
-    groupHelp: "ПКМ — широкий захват: переноси несколько фигур вместе. В контейнер попадут подходящие, остальные вернутся без штрафа.",
+    groupHelp: "Открой широкий захват в дереве: ПКМ переносит группу фигур. В контейнер попадут подходящие, остальные вернутся без штрафа.",
     shift: (stage) => `Смена ${stage}`,
     nextShift: (count) => `До следующей смены: ${count} фигур`,
     finalShift: "Максимальный темп — удержи рекорд!",
@@ -76,7 +77,7 @@ export const STRINGS: Record<Locale, Strings> = {
     missionNames: { sort: "Отсортируй 30 фигур вручную", combo: "12 фигур подряд вручную без ошибок", set: "Собери полный набор контейнеров" },
     play: "Начать сортировку",
     continueGame: "Продолжить",
-    howToPlay: "Тяни фигуры в контейнеры той же формы. Серия без ошибок растит комбо. Заполни все контейнеры — получи джекпот! Монеты трать на улучшения внизу.",
+    howToPlay: "Тяни фигуры в контейнеры той же формы. Серия без ошибок растит комбо. Заполни все контейнеры — получи джекпот! Монеты трать в дереве улучшений. Навыки сохраняются после проигрыша.",
     permanentHint: "Ручная сортировка даёт +2 XP, полный набор +20 XP. Уровень и задания сохраняются между партиями. За пропущенные дни штрафов нет.",
     startingBonus: "Монет на старте каждой партии",
     earned: "Получено",
@@ -107,8 +108,6 @@ export const STRINGS: Record<Locale, Strings> = {
     adsHint: "Награда придёт после просмотра",
     wait: "жди",
     ad: "реклама",
-    freeCoins: "Монеты за рекламу",
-    freeCoinsShort: "Монеты",
     miss: "Мимо",
     binFull: "Полно",
     overflow: "Уехал",
@@ -121,17 +120,12 @@ export const STRINGS: Record<Locale, Strings> = {
       purple: "Звезда",
       orange: "Гекс",
     },
-    upgrades: {
-      speed: "Скорость",
-      value: "Ценность",
-      type: "Тип",
-      auto: "Автосорт",
-      buffer: "Буфер",
-    },
+    upgrades: TREE_TEXT.ru.names,
   },
   en: {
+    rescued: "Returned!",
     groupCount: (count) => `Group: ${count}`,
-    groupHelp: "Right-drag to pick up a wide group. Matching shapes enter the bin; the others return to the belt without a penalty.",
+    groupHelp: "Unlock Wide pickup in the tree to right-drag a group. Matching shapes enter the bin; the others return to the belt without a penalty.",
     shift: (stage) => `Shift ${stage}`,
     nextShift: (count) => `${count} shapes to the next shift`,
     finalShift: "Top pace — keep your record going!",
@@ -145,7 +139,7 @@ export const STRINGS: Record<Locale, Strings> = {
     missionNames: { sort: "Sort 30 shapes by hand", combo: "12 manual sorts without a miss", set: "Fill every bin for a full set" },
     play: "Start sorting",
     continueGame: "Continue",
-    howToPlay: "Drag shapes into matching bins. Keep a clean streak to grow your combo. Fill every bin for a jackpot! Spend coins on upgrades below.",
+    howToPlay: "Drag shapes into matching bins. Keep a clean streak to grow your combo. Fill every bin for a jackpot! Spend coins in the upgrade tree. Skills persist after defeat.",
     permanentHint: "Manual sorting earns +2 XP, a full set +20 XP. Levels and missions persist between runs. No penalty for missed days.",
     startingBonus: "Starting coins in every run",
     earned: "Earned",
@@ -176,8 +170,6 @@ export const STRINGS: Record<Locale, Strings> = {
     adsHint: "The reward comes after the video",
     wait: "wait",
     ad: "ad",
-    freeCoins: "FREE COINS",
-    freeCoinsShort: "Coins",
     miss: "Miss",
     binFull: "Full",
     overflow: "Gone",
@@ -190,12 +182,6 @@ export const STRINGS: Record<Locale, Strings> = {
       purple: "Star",
       orange: "Hex",
     },
-    upgrades: {
-      speed: "Speed",
-      value: "Value",
-      type: "Type",
-      auto: "Autosort",
-      buffer: "Buffer",
-    },
+    upgrades: TREE_TEXT.en.names,
   },
 };

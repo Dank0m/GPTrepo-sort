@@ -46,7 +46,7 @@ test("30 sorts award one daily reward even across a save round trip", () => {
   for (let i = 0; i < 29; i++) {
     assert.equal(advanceProgression(progress, manual(), TODAY).coins, 0);
   }
-  assert.deepEqual(advanceProgression(progress, manual(), TODAY), { coins: 150, completed: ["sort"], rankUp: true });
+  assert.deepEqual(advanceProgression(progress, manual(), TODAY), { coins: 25, completed: ["sort"], rankUp: true });
   assert.equal(progress.xp, 135);
   progress = sanitizeProgression(JSON.parse(JSON.stringify(progress)), TODAY);
   assert.equal(advanceProgression(progress, manual(), TODAY).coins, 0);
@@ -55,7 +55,7 @@ test("30 sorts award one daily reward even across a save round trip", () => {
 
 test("combo and full-set missions award their exact advertised XP and coins once", () => {
   const progress = emptyProgression(TODAY);
-  assert.equal(advanceProgression(progress, manual(12), TODAY).coins, 200);
+  assert.equal(advanceProgression(progress, manual(12), TODAY).coins, 20);
   assert.equal(progress.xp, 102);
   assert.deepEqual(advanceProgression(progress, { kind: "set" }, TODAY).completed, ["set"]);
   assert.equal(progress.xp, 247);
@@ -69,7 +69,7 @@ test("one action may finish two missions and pays both exactly once", () => {
   progress.daily.sorted = 29;
   const result = advanceProgression(progress, manual(12), TODAY);
   assert.deepEqual(result.completed, ["sort", "combo"]);
-  assert.equal(result.coins, 350);
+  assert.equal(result.coins, 45);
   assert.equal(progress.xp, 177);
 });
 
@@ -77,7 +77,7 @@ test("UTC midnight rotates missions without removing permanent XP or requiring a
   const progress = emptyProgression(TODAY);
   advanceProgression(progress, { kind: "set" }, TODAY);
   const yesterdayXp = progress.xp;
-  assert.equal(advanceProgression(progress, { kind: "set" }, TOMORROW).coins, 250);
+  assert.equal(advanceProgression(progress, { kind: "set" }, TOMORROW).coins, 30);
   assert.equal(progress.xp, yesterdayXp + 145);
   assert.equal(progress.totalSets, 2);
   assert.equal(progress.daily.day, "2026-10-26");
@@ -110,10 +110,10 @@ test("loading a completed partial save seals missions without granting another r
 test("ranks have quadratic thresholds and a bounded starting bonus", () => {
   assert.deepEqual(rankInfo(0), { level: 1, current: 0, needed: 100, startingCoins: 0 });
   assert.equal(rankInfo(99).level, 1);
-  assert.deepEqual(rankInfo(100), { level: 2, current: 0, needed: 300, startingCoins: 10 });
+  assert.deepEqual(rankInfo(100), { level: 2, current: 0, needed: 300, startingCoins: 2 });
   assert.equal(rankInfo(399).level, 2);
-  assert.deepEqual(rankInfo(400), { level: 3, current: 0, needed: 500, startingCoins: 20 });
-  assert.equal(rankInfo(100000).startingCoins, 100);
+  assert.deepEqual(rankInfo(400), { level: 3, current: 0, needed: 500, startingCoins: 4 });
+  assert.equal(rankInfo(100000).startingCoins, 10);
   assert.deepEqual(rankInfo(NaN), rankInfo(0));
 });
 
@@ -149,7 +149,7 @@ test("mission view clamps progress and preserves displayed reward amounts", () =
   const progress = emptyProgression(TODAY);
   advanceProgression(progress, manual(40), TODAY);
   const missions = dailyMissions(progress);
-  assert.deepEqual(missions[1], { id: "combo", current: 12, target: 12, done: true, rewardXp: 100, rewardCoins: 200 });
+  assert.deepEqual(missions[1], { id: "combo", current: 12, target: 12, done: true, rewardXp: 100, rewardCoins: 20 });
   assert.equal(missions[0].done, false);
   assert.equal(missions[0].current, 1);
   assert.equal(missions[2].target, 1);

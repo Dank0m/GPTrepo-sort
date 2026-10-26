@@ -31,7 +31,7 @@ async function setup(page: Page, device: 'mobile' | 'tablet' | 'desktop', sdkMod
     const button = document.createElement('button');
     button.textContent = 'Fullscreen test';
     button.onclick = () => { void yandexService.requestFullscreen().then(() => { (window as any).__fullscreen.done++; }); };
-    document.querySelector('dialog')!.append(button);
+    document.querySelector('dialog[open]')!.append(button);
   });
 }
 
@@ -89,7 +89,7 @@ test('local mobile browser can request fullscreen without any Yandex SDK', async
     const button = document.createElement('button');
     button.textContent = 'Local fullscreen test';
     button.onclick = () => { void yandexService.requestFullscreen(); };
-    document.querySelector('dialog')!.append(button);
+    document.querySelector('dialog[open]')!.append(button);
   });
   await page.getByRole('button',{name:'Local fullscreen test',exact:true}).tap();
   await expect.poll(() => page.evaluate(() => (window as any).__nativeFullscreen)).toBe(1);

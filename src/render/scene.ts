@@ -1,4 +1,4 @@
-import { COLORS, INPUT, ITEM_STATE, type ItemType } from "../config.ts";
+import { COLORS, ITEM_STATE, type ItemType } from "../config.ts";
 import { strings } from "../i18n/locale.ts";
 import type { CanvasSurface } from "../core/canvas.ts";
 import { drawDebugOverlay } from "../debug/overlay.ts";
@@ -199,7 +199,7 @@ function drawGroupSelection(ctx: CanvasRenderingContext2D, world: World): void {
   ctx.lineWidth = 2;
   ctx.setLineDash([6, 5]);
   ctx.beginPath();
-  ctx.roundRect(group.x - INPUT.groupRadius, group.y - height / 2, INPUT.groupRadius * 2, height, 12);
+  ctx.roundRect(group.x - world.groupRadius, group.y - height / 2, world.groupRadius * 2, height, 12);
   ctx.fill();
   ctx.stroke();
   for (const { item } of group.entries) {

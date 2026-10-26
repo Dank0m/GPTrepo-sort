@@ -1,41 +1,41 @@
-import { BASE_TYPES, EXTRA_TYPES, type ItemType, type UpgradeId } from "../config.ts";
+import { BASE_TYPES, EXTRA_TYPES, UPGRADE_IDS, UPGRADES, type ItemType, type UpgradeId } from "../config.ts";
 
 export type UpgradeLevels = Record<UpgradeId, number>;
-
 export function emptyLevels(): UpgradeLevels {
-  return {
-    speed: 0,
-    value: 0,
-    type: 0,
-    auto: 0,
-    buffer: 0,
-  };
+  return Object.fromEntries(UPGRADE_IDS.map(id => [id, 0])) as UpgradeLevels;
 }
-
-export function activeTypes(levels: UpgradeLevels): ItemType[] {
-  const extra = EXTRA_TYPES.slice(0, Math.max(0, levels.type));
-  return [...BASE_TYPES, ...extra];
-}
-
-export function beltSpeed(levels: UpgradeLevels): number {
-  return 140 + 40 * levels.speed;
-}
-
-export function spawnInterval(levels: UpgradeLevels): number {
-  return Math.max(0.45, 0.85 - 0.08 * levels.speed);
-}
-
-export function minGap(levels: UpgradeLevels): number {
-  return 64 + 22 * levels.buffer;
-}
-
-export function coinValue(levels: UpgradeLevels): number {
-  return 10 + 10 * levels.value;
-}
-
-export function autoInterval(levels: UpgradeLevels): number {
-  if (levels.auto <= 0) {
-    return 0;
+export function sanitizeLevels(raw: unknown): UpgradeLevels {
+  const data = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+  const levels = emptyLevels();
+  for (const id of UPGRADE_IDS) {
+    const n = data[id];
+    levels[id] = typeof n === "number" && Number.isFinite(n) ? Math.max(0, Math.min(UPGRADES[id].max, Math.floor(n))) : 0;
   }
-  return Math.max(0.9, 2.4 - 0.5 * (levels.auto - 1));
+  for (const id of UPGRADE_IDS) {
+    const required = UPGRADES[id].requires;
+    if (required && levels[required.id] < required.level) levels[id] = 0;
+  }
+  return levels;
+}
+export function mergeLevels(a: UpgradeLevels, b: UpgradeLevels): UpgradeLevels {
+  return sanitizeLevels(Object.fromEntries(UPGRADE_IDS.map(id => [id, Math.max(a[id], b[id])])));
+}
+export function upgradeUnlocked(id: UpgradeId, levels: UpgradeLevels): boolean {
+  const required = UPGRADES[id].requires;
+  return !required || levels[required.id] >= required.level;
+}
+export function activeTypes(levels: UpgradeLevels): ItemType[] {
+  return [...BASE_TYPES, ...EXTRA_TYPES.slice(0, levels.type)];
+}
+export function beltSpeed(levels: UpgradeLevels): number { return 140 * (levels.speed ? .85 : 1); }
+export function spawnInterval(_levels: UpgradeLevels): number { return .85; }
+export function minGap(levels: UpgradeLevels): number { return 64 + 22 * levels.buffer; }
+/** Integer, bounded combo bonus: +1 per ten manual sorts, capped at +1 / +2 / +3. */
+export function sortReward(levels: UpgradeLevels, combo: number, manual = true): number {
+  const base = 3 + levels.value;
+  if (!manual) return Math.max(1, Math.floor(base / 2));
+  return base + Math.min(1 + levels.combo, Math.floor(Math.max(0, combo - 1) / 10));
+}
+export function autoInterval(levels: UpgradeLevels): number {
+  return levels.auto === 0 ? 0 : levels.auto === 1 ? 5 : 3.5;
 }

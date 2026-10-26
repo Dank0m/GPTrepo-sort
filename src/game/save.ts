@@ -1,8 +1,10 @@
-import { BIN_CAPACITY, ECONOMY, UPGRADE_IDS, UPGRADES, type ItemType } from "../config.ts";
-import { activeTypes, emptyLevels, type UpgradeLevels } from "./upgrades.ts";
+import { BIN_CAPACITY, ECONOMY, type ItemType } from "../config.ts";
+import { activeTypes, emptyLevels, sanitizeLevels, type UpgradeLevels } from "./upgrades.ts";
 import { emptyProgression, sanitizeProgression, type Progression } from "./progression.ts";
 
 export type Records = {
+  economyVersion: 2;
+  tree: UpgradeLevels;
   bestCoins: number;
   bestCombo: number;
   gamesPlayed: number;
@@ -16,20 +18,20 @@ function counter(value: unknown): number {
     ? Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, Math.floor(value))) : 0;
 }
 
+/** Old runaway coin balances/scores cannot be carried into the new economy. Mastery remains. */
+export function sanitizeRecords(raw: unknown): Records {
+  const parsed = raw && typeof raw === "object" ? raw as Partial<Records> : {};
+  return {
+    economyVersion: 2,
+    tree: sanitizeLevels(parsed.economyVersion === 2 ? parsed.tree : null),
+    bestCoins: parsed.economyVersion === 2 ? counter(parsed.bestCoins) : 0,
+    bestCombo: counter(parsed.bestCombo), gamesPlayed: counter(parsed.gamesPlayed),
+    progression: sanitizeProgression(parsed.progression),
+  };
+}
 export function loadRecords(): Records {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return emptyRecords();
-    const parsed = JSON.parse(raw) as Partial<Records>;
-    return {
-      bestCoins: counter(parsed.bestCoins),
-      bestCombo: counter(parsed.bestCombo),
-      gamesPlayed: counter(parsed.gamesPlayed),
-      progression: sanitizeProgression(parsed.progression),
-    };
-  } catch {
-    return emptyRecords();
-  }
+  try { return sanitizeRecords(JSON.parse(localStorage.getItem(KEY) || "null")); }
+  catch { return emptyRecords(); }
 }
 
 export function saveRecords(records: Records): void {
@@ -41,12 +43,14 @@ export function saveRecords(records: Records): void {
 }
 
 export function emptyRecords(): Records {
-  return { bestCoins: 0, bestCombo: 0, gamesPlayed: 0, progression: emptyProgression() };
+  return { economyVersion: 2, tree: emptyLevels(), bestCoins: 0, bestCombo: 0, gamesPlayed: 0, progression: emptyProgression() };
 }
 
 /** Session progress is local to this device; permanent records also use SDK cloud saves. */
 export type SessionSave = {
-  version: 1;
+  version: 2;
+  rescueCooldown: number;
+  pulseRemaining: number;
   coins: number;
   combo: number;
   maxCombo: number;
@@ -70,17 +74,18 @@ function object(value: unknown): Record<string, unknown> | null {
 /** Ignore unrecognized schemas and normalize every value before it reaches the world. */
 export function sanitizeSession(raw: unknown): SessionSave | null {
   const data = object(raw);
-  if (!data || data.version !== 1 || (data.status !== "playing" && data.status !== "over")) return null;
+  if (!data || data.version !== 2 || (data.status !== "playing" && data.status !== "over")) return null;
   const rawLevels = object(data.levels);
   if (!rawLevels) return null;
-  const levels = emptyLevels();
-  for (const id of UPGRADE_IDS) levels[id] = Math.min(UPGRADES[id].max, counter(rawLevels[id]));
+  const levels = sanitizeLevels(rawLevels);
   const bins: Partial<Record<ItemType, number>> = {};
   const rawBins = object(data.bins) ?? {};
   for (const type of activeTypes(levels)) bins[type] = Math.min(BIN_CAPACITY, counter(rawBins[type]));
   const combo = counter(data.combo);
   return {
-    version: 1,
+    version: 2,
+    rescueCooldown: Math.min(25, counter(data.rescueCooldown)),
+    pulseRemaining: Math.min(6, counter(data.pulseRemaining)),
     coins: counter(data.coins),
     combo,
     maxCombo: Math.max(combo, counter(data.maxCombo)),

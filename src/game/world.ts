@@ -26,8 +26,10 @@ import { yandexService } from "../services/YandexService.ts";
 import {
   activeTypes,
   autoInterval,
-  coinValue,
   emptyLevels,
+  sortReward,
+  upgradeUnlocked,
+  mergeLevels,
   type UpgradeLevels,
 } from "./upgrades.ts";
 
@@ -60,7 +62,10 @@ export class World implements AdHost {
   groupGrab: { x: number; y: number; entries: { item: Item; dx: number; dy: number }[] } | null = null;
   hoverBinType: ItemType | null = null;
   hoverUpgrade: UpgradeId | null = null;
-  hoverFreeCoins = false;
+  groupMode = false;
+  treeRequested = false;
+  rescueCooldown = 0;
+  pulseRemaining = 0;
   feedback: DropFeedback | null = null;
   lastDrop: DropKind | "none" = "none";
   coins = 0;
@@ -89,9 +94,7 @@ export class World implements AdHost {
 
   constructor(width: number, height: number, records: Records) {
     this.records = records;
-    this.layout = computeLayout(width, height, activeTypes(this.levels), {
-      freeCoins: adService.available,
-    });
+    this.layout = computeLayout(width, height, activeTypes(this.levels));
     this.resetSession();
     const session = loadSession();
     if (session) this.restoreSession(session);
@@ -103,12 +106,13 @@ export class World implements AdHost {
   }
 
   get pace(): ReturnType<typeof conveyorPace> {
-    return conveyorPace(this.sortedCount, this.levels, this.layout.belt.width, this.layout.itemSize);
+    const pace = conveyorPace(this.sortedCount, this.levels, this.layout.belt.width, this.layout.itemSize);
+    return { ...pace, speed: pace.speed * (this.pulseRemaining > 0 ? .75 : 1) };
   }
 
   restart(): void {
     if (document.hidden || yandexService.platformPaused) return;
-    const kept = Math.floor(this.coins * ECONOMY.rebirthKeep);
+    const kept = Math.min(ECONOMY.rebirthCap, Math.floor(this.coins * ECONOMY.rebirthKeep));
     if (this.status === "over") {
       this.persistRecords();
     }
@@ -173,9 +177,7 @@ export class World implements AdHost {
 
   resize(width: number, height: number): void {
     this.pointerCancel();
-    this.layout = computeLayout(width, height, activeTypes(this.levels), {
-      freeCoins: adService.available,
-    });
+    this.layout = computeLayout(width, height, activeTypes(this.levels));
     this.snapBeltItems();
   }
 
@@ -191,24 +193,6 @@ export class World implements AdHost {
 
   isPlayable(): boolean {
     return this.status === "playing" && !this.paused && !this.adsPlaying && !this.dumpOffer && !document.hidden && !yandexService.platformPaused;
-  }
-
-  showFreeCoins(): boolean {
-    return adService.available;
-  }
-
-  freeCoinsReady(): boolean {
-    return (
-      this.status === "playing" &&
-      !this.paused &&
-      !this.dumpOffer &&
-      !this.adsPlaying &&
-      adService.canShow("freeCoins")
-    );
-  }
-
-  freeCoinsCooldown(): number {
-    return adService.cooldownLeft();
   }
 
   gameOverUi(width: number, height: number): GameOverUi {
@@ -251,6 +235,8 @@ export class World implements AdHost {
     if (this.status !== "playing") {
       return;
     }
+    this.rescueCooldown = Math.max(0, this.rescueCooldown - dt);
+    this.pulseRemaining = Math.max(0, this.pulseRemaining - dt);
     this.moveBelt(dt);
     this.runAutoSort(dt);
     this.spawnTimer += dt;
@@ -303,17 +289,19 @@ export class World implements AdHost {
       return false;
     }
     sfx.unlock();
-    if (this.layout.freeCoins && pointInRect(x, y, this.layout.freeCoins)) {
-      if (this.freeCoinsReady()) {
-        void this.watchFreeCoins();
-      } else {
-        sfx.play("reject");
-      }
+    if (pointInRect(x, y, this.layout.treeButton)) { this.treeRequested = true; return false; }
+    if (pointInRect(x, y, this.layout.groupButton)) {
+      if (this.levels.wide) this.groupMode = !this.groupMode;
+      else this.treeRequested = true;
       return false;
     }
-    const upgrade = this.hitUpgrade(x, y);
-    if (upgrade) {
-      this.tryBuy(upgrade);
+    if (this.groupMode) return this.grabGroup(x, y);
+    const clickedBin = hitBin(this.layout.bins, x, y);
+    const full = this.bins.find(bin => bin.type === clickedBin?.type);
+    if (this.levels.unload && full && full.filled === full.capacity) {
+      full.filled = 0;
+      this.grantBonus(8);
+      this.persistRecords();
       return false;
     }
     if (this.grabbed) {
@@ -332,8 +320,6 @@ export class World implements AdHost {
   }
 
   pointerMove(x: number, y: number): void {
-    this.hoverUpgrade = this.hitUpgrade(x, y) ?? null;
-    this.hoverFreeCoins = Boolean(this.layout.freeCoins && pointInRect(x, y, this.layout.freeCoins));
     if (this.groupGrab && this.isPlayable()) {
       this.groupGrab.x = x;
       this.groupGrab.y = y - INPUT.dragLift;
@@ -358,7 +344,7 @@ export class World implements AdHost {
       this.groupGrab = null;
       this.grabbed = null;
       this.hoverBinType = null;
-      const slot = hitBin(this.layout.bins, x, y - INPUT.dragLift);
+      const slot = this.dropTarget(x, y - INPUT.dragLift, group.entries[0]?.item.type);
       const bin = this.bins.find(b => b.type === slot?.type);
       let room = bin ? bin.capacity - bin.filled : 0;
       const returned: Item[] = [];
@@ -383,7 +369,7 @@ export class World implements AdHost {
       return;
     }
 
-    const slot = hitBin(this.layout.bins, held.x, held.y);
+    const slot = this.dropTarget(held.x, held.y, held.type);
     if (!slot) {
       this.returnToBelt(held);
       return;
@@ -417,8 +403,9 @@ export class World implements AdHost {
 
   private grabGroup(x: number, y: number): boolean {
     if (!this.isPlayable() || this.grabbed || !pointInRect(x, y, this.layout.belt)) return false;
+    if (!this.levels.wide) { this.treeRequested = true; return false; }
     const entries = this.items
-      .filter(item => item.state === ITEM_STATE.OnBelt && Math.abs(item.x - x) <= INPUT.groupRadius + item.size / 2)
+      .filter(item => item.state === ITEM_STATE.OnBelt && Math.abs(item.x - x) <= this.groupRadius + item.size / 2)
       .map(item => ({ item, dx: item.x - x, dy: item.y - y }));
     if (!entries.length) return false;
     sfx.unlock();
@@ -458,27 +445,33 @@ export class World implements AdHost {
   }
 
   tryBuy(id: UpgradeId): boolean {
+    if (this.adsPlaying) return false;
     const cost = nextUpgradeCost(id, this.levels[id]);
-    if (cost === null || this.coins < cost) {
+    if (cost === null || this.coins < cost || !upgradeUnlocked(id, this.levels)) {
       this.shopPulse = { id, kind: "reject", until: this.elapsed + 0.35 };
       sfx.play("reject");
       return false;
     }
     this.coins -= cost;
+    this.pointerCancel();
     this.levels[id] += 1;
+    this.records.tree = { ...this.levels };
     this.shopPulse = { id, kind: "buy", until: this.elapsed + 0.35 };
     this.syncBins();
-    this.layout = computeLayout(this.layout.width, this.layout.height, activeTypes(this.levels), {
-      freeCoins: adService.available,
-    });
+    this.layout = computeLayout(this.layout.width, this.layout.height, activeTypes(this.levels));
     this.snapBeltItems();
     sfx.play("buy");
     this.persistRecords();
     return true;
   }
 
-  hitUpgrade(x: number, y: number): UpgradeId | undefined {
-    return this.layout.shopButtons.find((button) => pointInRect(x, y, button))?.id;
+  get groupRadius(): number { return this.levels.wide > 1 ? 150 : INPUT.groupRadius; }
+
+  private dropTarget(x: number, y: number, type?: ItemType) {
+    const direct = hitBin(this.layout.bins, x, y);
+    if (direct || !this.levels.magnet || !type) return direct;
+    return this.layout.bins.find(bin => bin.type === type &&
+      Math.hypot(Math.max(bin.x - x, 0, x - bin.x - bin.width), Math.max(bin.y - y, 0, y - bin.y - bin.height)) <= 50);
   }
 
   private placeGrabbed(item: Item, x: number, y: number): void {
@@ -487,18 +480,19 @@ export class World implements AdHost {
   }
 
   private resetSession(): void {
-    this.levels = emptyLevels();
+    this.levels = { ...this.records.tree };
     this.items = [];
     this.bins = [];
     this.syncBins();
-    this.layout = computeLayout(this.layout.width, this.layout.height, activeTypes(this.levels), {
-      freeCoins: adService.available,
-    });
+    this.layout = computeLayout(this.layout.width, this.layout.height, activeTypes(this.levels));
     this.grabbed = null;
     this.groupGrab = null;
     this.hoverBinType = null;
     this.hoverUpgrade = null;
-    this.hoverFreeCoins = false;
+    this.groupMode = false;
+    this.treeRequested = false;
+    this.rescueCooldown = 0;
+    this.pulseRemaining = 0;
     this.feedback = null;
     this.lastDrop = "none";
     this.records.progression = sanitizeProgression(this.records.progression);
@@ -533,12 +527,12 @@ export class World implements AdHost {
     this.bins = next;
   }
 
-  private applyCorrect(): void {
-    this.combo += 1;
+  private applyCorrect(manual: boolean): void {
+    if (manual) this.combo += 1;
     if (this.combo > this.maxCombo) {
       this.maxCombo = this.combo;
     }
-    this.lastGain = coinValue(this.levels) * this.combo;
+    this.lastGain = sortReward(this.levels, this.combo, manual);
     this.coins += this.lastGain;
   }
 
@@ -579,7 +573,9 @@ export class World implements AdHost {
     }
     saveRecords(this.records);
     saveSession({
-      version: 1,
+      version: 2,
+      rescueCooldown: this.rescueCooldown,
+      pulseRemaining: this.pulseRemaining,
       coins: this.coins,
       combo: this.combo,
       maxCombo: this.maxCombo,
@@ -604,7 +600,10 @@ export class World implements AdHost {
     this.lives = session.lives;
     this.status = session.status;
     this.sortedCount = session.sortedCount;
-    this.levels = session.levels;
+    this.levels = mergeLevels(session.levels, this.records.tree);
+    this.records.tree = { ...this.levels };
+    this.rescueCooldown = session.rescueCooldown;
+    this.pulseRemaining = session.pulseRemaining;
     this.beatBestCoins = session.beatBestCoins;
     this.beatBestCombo = session.beatBestCombo;
     this.syncBins();
@@ -635,17 +634,6 @@ export class World implements AdHost {
     if (this.isPlayable()) yandexService.gameplayStart();
     if (result === "rewarded") {
       this.grantBonus(bonus);
-      this.persistRecords();
-    }
-  }
-
-  private async watchFreeCoins(): Promise<void> {
-    if (!this.freeCoinsReady()) {
-      return;
-    }
-    const result = await adService.show("freeCoins", this);
-    if (result === "rewarded") {
-      this.grantBonus(ADS.freeCoins);
       this.persistRecords();
     }
   }
@@ -712,6 +700,14 @@ export class World implements AdHost {
       item.y = centerY;
       item.x += speed * dt;
       if (item.x >= endX) {
+        if (this.levels.recycle && this.rescueCooldown <= 0) {
+          this.rescueCooldown = 25;
+          item.x = belt.x + item.size / 2;
+          kept.push(item);
+          this.fx.float(item.x, belt.y, strings().rescued, COLORS.dropOk, 18);
+          this.persistRecords();
+          continue;
+        }
         this.setFeedback(null, "overflow");
         this.fx.float(belt.x + belt.width - 40, belt.y + belt.height / 2, strings().overflow, COLORS.dropBad, 26, 1.1);
         this.applyMiss();
@@ -733,15 +729,12 @@ export class World implements AdHost {
       return;
     }
     this.autoTimer = 0;
-    const candidate = this.rightmostSortable();
-    if (!candidate) {
-      return;
+    for (let i = 0; i < (this.levels.batch ? 2 : 1); i++) {
+      const candidate = this.rightmostSortable();
+      if (!candidate) break;
+      const bin = this.bins.find(entry => entry.type === candidate.type);
+      if (bin) this.beginAutoSort(candidate, bin);
     }
-    const bin = this.bins.find((entry) => entry.type === candidate.type);
-    if (!bin || bin.filled >= bin.capacity) {
-      return;
-    }
-    this.beginAutoSort(candidate, bin);
   }
 
   /** Closest to the belt exit (right). Ignores grab/fly; uses live X after the player moves items. */
@@ -822,7 +815,7 @@ export class World implements AdHost {
     if (this.status !== "playing") {
       return;
     }
-    this.applyCorrect();
+    this.applyCorrect(fromHand);
     this.setFeedback(bin.type, "correct");
     const previousStage = this.shift.stage;
     this.sortedCount += 1;
@@ -851,6 +844,7 @@ export class World implements AdHost {
     const bonus = ECONOMY.dumpBonus(types);
     this.coins += bonus;
     this.lastGain = bonus;
+    if (this.levels.pulse) this.pulseRemaining = 6;
     for (const bin of this.bins) {
       bin.filled = 0;
     }

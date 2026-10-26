@@ -1,4 +1,5 @@
 import { CanvasSurface } from "./canvas.ts";
+import { UpgradeTree } from "../ui/UpgradeTree.ts";
 import { ProgressPanel } from "../ui/ProgressPanel.ts";
 import { yandexService } from "../services/YandexService.ts";
 import { GameLoop } from "./loop.ts";
@@ -13,6 +14,7 @@ export class App {
   private readonly loop: GameLoop;
   private readonly world: World;
   private readonly progressPanel: ProgressPanel;
+  private readonly upgradeTree: UpgradeTree;
 
   constructor(canvas: HTMLCanvasElement, records: Records) {
     this.surface = new CanvasSurface(canvas);
@@ -21,9 +23,10 @@ export class App {
       update: (dt) => this.update(dt),
       render: () => this.render(),
     });
+    this.upgradeTree = new UpgradeTree(this.world, canvas);
     this.progressPanel = new ProgressPanel(this.world, canvas);
     yandexService.onPlatformPause(() => this.world.pauseForPlatform());
-    yandexService.onPlatformResume(() => this.world.resumeFromPlatform(!this.progressPanel.isOpen));
+    yandexService.onPlatformResume(() => this.world.resumeFromPlatform(!this.progressPanel.isOpen && !this.upgradeTree.isOpen));
     this.bindResize();
     this.bindPointer();
     this.bindKeys();
@@ -96,7 +99,7 @@ export class App {
 
   private bindKeys(): void {
     window.addEventListener("keydown", (event) => {
-      if (this.progressPanel.isOpen) return;
+      if (this.progressPanel.isOpen || this.upgradeTree.isOpen) return;
       if (import.meta.env.DEV && (event.key === "d" || event.key === "D")) {
         this.world.debug = !this.world.debug;
       }
@@ -120,14 +123,18 @@ export class App {
       if (document.hidden) {
         onHidden();
       } else {
-        this.world.resumeFromPlatform(!this.progressPanel.isOpen);
+        this.world.resumeFromPlatform(!this.progressPanel.isOpen && !this.upgradeTree.isOpen);
       }
     });
     window.addEventListener("blur", onHidden);
-    window.addEventListener("focus", () => this.world.resumeFromPlatform(!this.progressPanel.isOpen));
+    window.addEventListener("focus", () => this.world.resumeFromPlatform(!this.progressPanel.isOpen && !this.upgradeTree.isOpen));
   }
 
   private update(dt: number): void {
+    if (this.world.treeRequested) {
+      this.world.treeRequested = false;
+      if (!this.progressPanel.isOpen) this.upgradeTree.open();
+    }
     this.world.update(dt);
   }
 
@@ -137,5 +144,6 @@ export class App {
     }
     drawScene(this.surface, this.world, this.loop.framesPerSecond);
     this.progressPanel.update();
+    this.upgradeTree.update();
   }
 }

@@ -1,0 +1,47 @@
+import type { UpgradeId } from '../config.ts';
+export const TREE_TEXT = {
+ ru: {
+  title: 'Дерево улучшений', open: 'Улучшения', close: 'К игре', buy: 'Купить', owned: 'Изучено', locked: 'Нужно', level: 'ур.', coins: 'Монеты',
+  note: 'Навыки остаются навсегда. Монеты — ресурс партии: после проигрыша переносится 10%, не больше 20. ПКМ или кнопка группы работают после открытия широкого захвата.',
+  migration: 'Экономика обновлена: мастерство и задания сохраняются. Старые монеты, рекорд монет и сессионные улучшения из версии 1.0 не переносятся. Новые покупки дерева постоянные.',
+  branches: { control: 'Контроль ленты', automation: 'Автоматика', orders: 'Заказы' },
+  names: {buffer:'Разделители',wide:'Широкий захват',magnet:'Магнитный прицел',unload:'Разгрузочный люк',speed:'Мягкий ход',auto:'Манипулятор',batch:'Двойной захват',pulse:'Сервисное окно',recycle:'Возвратная лента',value:'Точный заказ',combo:'Серийный заказ',type:'Новые материалы'} as Record<UpgradeId,string>,
+  descriptions: {
+   buffer:'Больше пространства между фигурами. Два уровня разделителей.',
+   wide:'Открывает перенос группы через ПКМ или кнопку группы на телефоне. Зона 220 / 300 пикселей.',
+   magnet:'Правильный контейнер принимает фигуру с расстояния до 50 пикселей от края.',
+   unload:'Нажми полный контейнер: разгрузи его и получи 8 монет. Полный набор выгоднее: 36–72 монеты.',
+   speed:'Лента на 15% медленнее. Автоматическая сложность продолжает расти.',
+   auto:'Сортирует одну фигуру каждые 5 / 3,5 секунды. Автоматическая сортировка даёт 1–2 монеты и не растит комбо.',
+   batch:'Манипулятор забирает до двух фигур за один цикл, резервируя свободные места.',
+   pulse:'После полного набора лента на 6 секунд замедляется ещё на 25%.',
+   recycle:'Возвращает одну пропущенную фигуру в начало ленты без штрафа. Перезарядка 25 секунд игры.',
+   value:'Ручная сортировка приносит 4 / 5 монет вместо 3. Автосорт — 2 вместо 1.',
+   combo:'Повышает предел бонуса серии до +2 / +3 монет. Бонус растёт раз в 10 ручных сортировок.',
+   type:'Добавляет ромб, звезду и шестиугольник по одному. Каждый тип даёт +12 к награде полного набора.',
+  } as Record<UpgradeId,string>,
+  group:'Группа', groupLocked:'Группа закрыта', active:'Группа: ВКЛ', off:'Группа: ВЫКЛ',
+ },
+ en: {
+  title:'Upgrade tree',open:'Upgrades',close:'Back to game',buy:'Buy',owned:'Learned',locked:'Requires',level:'lv.',coins:'Coins',
+  note:'Skills are permanent. Coins belong to the run: keep 10% after defeat, capped at 20. Right-drag or the group button unlock after buying Wide pickup.',
+  migration:'Economy update: mastery and missions are preserved. Coins, coin records and session upgrades from version 1.0 do not carry over. New tree purchases are permanent.',
+  branches:{control:'Belt control',automation:'Automation',orders:'Orders'},
+  names:{buffer:'Dividers',wide:'Wide pickup',magnet:'Magnetic aim',unload:'Unload hatch',speed:'Gentle belt',auto:'Sorting arm',batch:'Twin pickup',pulse:'Service window',recycle:'Return belt',value:'Precise order',combo:'Series order',type:'New materials'} as Record<UpgradeId,string>,
+  descriptions:{
+   buffer:'More space between shapes. Two divider levels.',
+   wide:'Unlock group dragging with right-click or the mobile group button. A 220 / 300 pixel area.',
+   magnet:'The matching bin accepts a shape up to 50 pixels outside its edge.',
+   unload:'Tap a full bin to empty it and earn 8 coins. Full sets pay more: 36–72 coins.',
+   speed:'The belt moves 15% slower. Automatic difficulty still rises.',
+   auto:'Sorts one shape every 5 / 3.5 seconds. Automatic sorts earn 1–2 coins and never grow combos.',
+   batch:'The arm picks up to two shapes per cycle, reserving available bin space.',
+   pulse:'A full set slows the belt by another 25% for 6 seconds.',
+   recycle:'Returns one missed shape to the belt entrance without a penalty. Recharges in 25 seconds of play.',
+   value:'Manual sorts earn 4 / 5 coins instead of 3. Autosort earns 2 instead of 1.',
+   combo:'Raises the streak bonus cap to +2 / +3 coins. It grows once per ten manual sorts.',
+   type:'Adds a diamond, star and hexagon one at a time. Each type adds 12 coins to a full set.',
+  } as Record<UpgradeId,string>,
+  group:'Group',groupLocked:'Group locked',active:'Group: ON',off:'Group: OFF',
+ }
+};

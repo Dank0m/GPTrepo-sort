@@ -1,5 +1,6 @@
-import { loadRecords, saveRecords, type Records } from "../game/save.ts";
-import { sanitizeProgression, mergeProgression } from "../game/progression.ts";
+import { mergeLevels } from "../game/upgrades.ts";
+import { loadRecords, saveRecords, sanitizeRecords, type Records } from "../game/save.ts";
+import { mergeProgression } from "../game/progression.ts";
 
 export type GameSave = Records;
 
@@ -55,26 +56,15 @@ function yaGames(): YaGamesNamespace | undefined {
   return (window as Window & { YaGames?: YaGamesNamespace }).YaGames;
 }
 
-function safeCounter(raw: unknown): number {
-  return typeof raw === "number" && Number.isFinite(raw) ? Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, Math.floor(raw))) : 0;
-}
-
 function asRecords(raw: unknown): Records | null {
-  if (!raw || typeof raw !== "object") {
-    return null;
-  }
-  const data = raw as Partial<Records>;
-  const bestCoins = safeCounter(data.bestCoins);
-  const bestCombo = safeCounter(data.bestCombo);
-  const gamesPlayed = safeCounter(data.gamesPlayed);
-  if (bestCoins === 0 && bestCombo === 0 && gamesPlayed === 0 && !("bestCoins" in data)) {
-    return null;
-  }
-  return { bestCoins, bestCombo, gamesPlayed, progression: sanitizeProgression(data.progression) };
+  if (!raw || typeof raw !== "object" || !("bestCoins" in raw || "tree" in raw)) return null;
+  return sanitizeRecords(raw);
 }
 
 function mergeRecords(a: Records, b: Records): Records {
   return {
+    economyVersion: 2,
+    tree: mergeLevels(a.tree, b.tree),
     bestCoins: Math.max(a.bestCoins, b.bestCoins),
     bestCombo: Math.max(a.bestCombo, b.bestCombo),
     gamesPlayed: Math.max(a.gamesPlayed, b.gamesPlayed),
@@ -350,7 +340,7 @@ export class YandexService {
     }
     try {
       if (this.cloud === "player" && this.player) {
-        const raw = await this.player.getData(["bestCoins", "bestCombo", "gamesPlayed", "progression"]);
+        const raw = await this.player.getData(["bestCoins", "bestCombo", "gamesPlayed", "progression", "tree", "economyVersion"]);
         const cloud = asRecords(raw);
         if (!cloud) {
           return local;

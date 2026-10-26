@@ -29,7 +29,7 @@ async function fakeSdk(page: Page, storageOnly = false): Promise<void> {
         getPlayer: async () => {
           if (storageOnly) throw new Error("Guest without player data");
           return {
-            getData: async () => ({}),
+            getData: async () => state.__cloudRead ?? {},
             setData: (data: any) => new Promise<void>((resolve) => {
               state.__cloudWrites.push(JSON.parse(JSON.stringify(data)));
               state.__activeWrites++;
@@ -233,4 +233,56 @@ test("visibility callbacks do not consume platform resume or restart behind a me
   await page.evaluate(() => (window as any).__sdkEvents.game_api_resume());
   await expect(page.getByRole('dialog')).toBeVisible();
   expect(await page.evaluate(() => (window as any).__sdkCalls)).toEqual(['ready','start','stop','start','stop']);
+});
+
+
+test("permanent skill trees merge across devices without losing local or cloud purchases", async ({ page }) => {
+  await fakeSdk(page);
+  await loaded(page);
+  const result = await page.evaluate(async () => {
+    const { yandexService } = await import("/src/services/YandexService.ts");
+    const { emptyRecords, saveRecords, loadRecords } = await import("/src/game/save.ts");
+    const local = emptyRecords();
+    Object.assign(local.tree, { buffer: 1, wide: 1, value: 1 });
+    local.bestCoins = 50;
+    saveRecords(local);
+    const remote = emptyRecords();
+    Object.assign(remote.tree, { buffer: 2, auto: 1, batch: 1 });
+    remote.bestCoins = 80;
+    (window as any).__cloudRead = remote;
+    const merged = await yandexService.loadGame();
+    return { tree: merged.tree, coins: merged.bestCoins, localTree: loadRecords().tree };
+  });
+  expect(result.tree).toMatchObject({ buffer: 2, wide: 1, value: 1, auto: 1, batch: 1 });
+  expect(result.coins).toBe(80);
+  expect(result.localTree).toEqual(result.tree);
+});
+
+
+test("service timers survive a rewarded offer and opening the tree does not leave it paused", async ({ page }) => {
+  await fakeSdk(page);
+  await loaded(page);
+  const result = await page.evaluate(async () => {
+    const { World } = await import("/src/game/world.ts");
+    const { emptyRecords } = await import("/src/game/save.ts");
+    const { UpgradeTree } = await import("/src/ui/UpgradeTree.ts");
+    const w = new World(800, 700, emptyRecords());
+    w.resume();
+    w.coins = 300;
+    w.tryBuy("auto");
+    w.tryBuy("pulse");
+    w.rescueCooldown = 25;
+    w.bins.forEach(bin => { bin.filled = bin.capacity; });
+    (w as any).tryDump();
+    w.update(4);
+    const duringOffer = { pulse: w.pulseRemaining, rescue: w.rescueCooldown };
+    const tree = new UpgradeTree(w, document.querySelector("canvas")!);
+    tree.open();
+    tree.close();
+    const paused = w.paused;
+    w.update(2); // Offer timeout finishes; no belt time elapses in this frame.
+    w.update(1);
+    return { duringOffer, paused, pulse: w.pulseRemaining, rescue: w.rescueCooldown };
+  });
+  expect(result).toEqual({ duringOffer: { pulse: 6, rescue: 25 }, paused: false, pulse: 5, rescue: 24 });
 });

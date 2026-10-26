@@ -52,7 +52,7 @@ for (const viewport of [{ width:568,height:320 }, { width:560,height:320 }, { wi
       const l = computeLayout(innerWidth,innerHeight,['red','blue','yellow','green','purple','orange'],{freeCoins:true});
       const offer = dumpOfferUi(innerWidth,innerHeight);
       const gameOver = gameOverUi(innerWidth,innerHeight,{record:true});
-      const all = [l.hud,l.progress,l.belt,...l.bins,...l.shopButtons,l.freeCoins!,offer.box,offer.doubleBtn,offer.dismissBtn,gameOver.box,gameOver.restartBtn];
+      const all = [l.hud,l.progress,l.belt,...l.bins,l.treeButton,l.groupButton,offer.box,offer.doubleBtn,offer.dismissBtn,gameOver.box,gameOver.restartBtn];
       const band = document.querySelector('.progress-strip')!;
       return {
         inside: all.every(r => r.x>=0&&r.y>=0&&r.x+r.width<=innerWidth&&r.y+r.height<=innerHeight),
@@ -65,25 +65,17 @@ for (const viewport of [{ width:568,height:320 }, { width:560,height:320 }, { wi
   });
 }
 
-test('narrow rewarded shop label fits its button and retains ad and reward labels', async ({ page }) => {
-  await page.setViewportSize({width:568,height:320});
-  await page.goto('/?mockAds=1');
-  await page.getByRole('button',{name:'Начать сортировку',exact:true}).click();
-  const labels = await page.evaluate(async () => {
-    const { World } = await import('/src/game/world.ts');
-    const { emptyRecords } = await import('/src/game/save.ts');
-    const { drawShop } = await import('/src/render/shop.ts');
-    const w=new World(innerWidth,innerHeight,emptyRecords());w.resume();
-    const button=w.layout.freeCoins!;
-    const ctx=document.createElement('canvas').getContext('2d')!;
-    const original=ctx.fillText.bind(ctx);const calls:any[]=[];
-    ctx.fillText=(text,x,y,maxWidth)=>{
-      if(x===button.x+button.width/2) calls.push({text,maxWidth,measured:ctx.measureText(text).width});
-      if(maxWidth===undefined) original(text,x,y);else original(text,x,y,maxWidth);
-    };
-    drawShop(ctx,w);
-    return {calls,width:button.width};
-  });
-  expect(labels.calls.map(call=>call.text)).toEqual(['Монеты','реклама','+500']);
-  expect(labels.calls.every(call=>Math.min(call.measured,call.maxWidth??Infinity)<=labels.width-8)).toBe(true);
+test('fixed ad money control is absent even when rewarded SDK is available',async({page})=>{
+ await page.goto('/?mockAds=1');
+ await page.getByRole('button',{name:'Начать сортировку',exact:true}).click();
+ const rendered=await page.evaluate(async()=>{
+  const {World}=await import('/src/game/world.ts');const {emptyRecords}=await import('/src/game/save.ts');const {drawShop}=await import('/src/render/shop.ts');
+  const w=new World(568,320,emptyRecords());const ctx=document.createElement('canvas').getContext('2d')!;const labels:string[]=[];
+  ctx.fillText=(text)=>{labels.push(text);};drawShop(ctx,w);
+  return {labels,legacy:(w.layout as any).freeCoins,buttons:(w.layout as any).shopButtons};
+ });
+ expect(rendered.labels.join(' ')).not.toMatch(/500|реклам|FREE COINS/);
+ expect(rendered.legacy).toBeUndefined();expect(rendered.buttons).toBeUndefined();
+ await page.getByRole('button',{name:'Улучшения',exact:true}).click();
+ await expect(page.getByRole('dialog')).toContainText('Дерево улучшений');
 });

@@ -28,7 +28,7 @@ test('a complete run grows through all shifts without purchases, restores pace, 
         w.resume();
       }
     }
-    const final={sorted:w.sortedCount,stage:w.shift.stage,levels:w.levels,lives:w.lives,pace:w.pace,sets:w.records.progression.totalSets};
+    const final={sorted:w.sortedCount,stage:w.shift.stage,levels:w.levels,noPurchases:Object.values(w.levels).every(n=>n===0),lives:w.lives,pace:w.pace,sets:w.records.progression.totalSets};
     w.status='over';
     w.restart();
     return {initial,stages,restored,final,restarted:w.shift.stage};
@@ -36,7 +36,7 @@ test('a complete run grows through all shifts without purchases, restores pace, 
   expect(result.stages).toEqual([1,2,3,4,5,6,7,8,9,10]);
   expect(result.restored).toBe(true);
   expect(result.final.sorted).toBe(185);
-  expect(result.final.levels).toEqual({speed:0,value:0,type:0,auto:0,buffer:0});
+  expect(result.final.noPurchases).toBe(true);
   expect(result.final.lives).toBe(3);
   expect(result.final.sets).toBeGreaterThan(0);
   expect(result.final.pace.speed).toBeGreaterThan(result.initial.speed);
