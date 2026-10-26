@@ -18,7 +18,9 @@ test('records and paid upgrades survive reload before game over', async ({ page 
       w.pointerUp(slot.x + slot.width/2, slot.y + slot.height/2 + INPUT.dragLift);
     }
     w.coins=60; // Fixed purchase budget; income has its own economy tests.
+    w.intermission = true;
     const bought = w.tryBuy('value');
+    w.continueLevel();
     return { bought, record: loadRecords(), session: loadSession() };
   });
   expect(first.bought).toBe(true);

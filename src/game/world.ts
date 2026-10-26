@@ -13,7 +13,7 @@ import {
 import { sfx } from "../audio/sfx.ts";
 import { loadSession, saveRecords, saveSession, type Records, type SessionSave } from "./save.ts";
 import { advanceProgression, rankInfo, sanitizeProgression } from "./progression.ts";
-import { conveyorPace, shiftDifficulty } from "./difficulty.ts";
+import { conveyorPace, shiftDifficulty, SHAPES_PER_SHIFT } from "./difficulty.ts";
 import { createBin, type Bin } from "./bin.ts";
 import { Fx } from "./fx.ts";
 import { hitBin, hitItem, pointInRect } from "./hit.ts";
@@ -79,6 +79,7 @@ export class World implements AdHost {
   debug = false;
   shopPulse: ShopPulse | null = null;
   sortedCount = 0;
+  intermission = false;
   paused = false;
   records: Records;
   restoredSession = false;
@@ -105,13 +106,29 @@ export class World implements AdHost {
     return shiftDifficulty(this.sortedCount);
   }
 
+  /** Completed twenty-sort levels continue beyond the capped conveyor difficulty. */
+  get completedLevel(): number { return Math.floor(this.sortedCount / SHAPES_PER_SHIFT); }
+
+  get canBuyUpgrades(): boolean {
+    return this.intermission && this.status === "playing" && !this.adsPlaying &&
+      !document.hidden && !yandexService.platformPaused;
+  }
+
+  /** Only the explicit Next action leaves an upgrade break. */
+  continueLevel(): void {
+    if (!this.canBuyUpgrades) return;
+    this.intermission = false;
+    this.resume();
+    this.persistRecords();
+  }
+
   get pace(): ReturnType<typeof conveyorPace> {
     const pace = conveyorPace(this.sortedCount, this.levels, this.layout.belt.width, this.layout.itemSize);
     return { ...pace, speed: pace.speed * (this.pulseRemaining > 0 ? .75 : 1) };
   }
 
   restart(): void {
-    if (document.hidden || yandexService.platformPaused) return;
+    if (document.hidden || yandexService.platformPaused || this.intermission) return;
     const kept = Math.min(ECONOMY.rebirthCap, Math.floor(this.coins * ECONOMY.rebirthKeep));
     if (this.status === "over") {
       this.persistRecords();
@@ -159,7 +176,7 @@ export class World implements AdHost {
   }
 
   resume(): void {
-    if (!this.paused || this.adsPlaying || document.hidden || yandexService.platformPaused) {
+    if (this.intermission || !this.paused || this.adsPlaying || document.hidden || yandexService.platformPaused) {
       return;
     }
     this.paused = false;
@@ -192,7 +209,7 @@ export class World implements AdHost {
   }
 
   isPlayable(): boolean {
-    return this.status === "playing" && !this.paused && !this.adsPlaying && !this.dumpOffer && !document.hidden && !yandexService.platformPaused;
+    return this.status === "playing" && !this.intermission && !this.paused && !this.adsPlaying && !this.dumpOffer && !document.hidden && !yandexService.platformPaused;
   }
 
   gameOverUi(width: number, height: number): GameOverUi {
@@ -202,14 +219,14 @@ export class World implements AdHost {
   }
 
   dumpOfferUi(width: number, height: number): DumpOfferUi | null {
-    if (!this.dumpOffer || this.adsPlaying) {
+    if (!this.dumpOffer || this.adsPlaying || this.intermission) {
       return null;
     }
     return makeDumpOfferUi(width, height);
   }
 
   update(dt: number): void {
-    if (this.adsPlaying) {
+    if (this.adsPlaying || this.intermission) {
       return;
     }
     this.elapsed += dt;
@@ -225,6 +242,7 @@ export class World implements AdHost {
     }
     if (this.status !== "playing") return;
     this.updateFlights(dt);
+    if (this.intermission) return;
     if (this.dumpOffer) {
       this.dumpOffer.remaining -= dt;
       if (this.dumpOffer.remaining <= 0) {
@@ -263,6 +281,7 @@ export class World implements AdHost {
       toggleLocale();
       return false;
     }
+    if (this.intermission) return false;
     if (pointInRect(x, y, this.layout.pause) && this.status === "playing" && !this.dumpOffer) {
       this.togglePause();
       return false;
@@ -338,6 +357,7 @@ export class World implements AdHost {
   }
 
   pointerUp(x: number, y: number): void {
+    if (!this.isPlayable()) { this.pointerCancel(); return; }
     if (this.groupGrab) {
       this.pointerMove(x, y);
       const group = this.groupGrab;
@@ -445,7 +465,7 @@ export class World implements AdHost {
   }
 
   tryBuy(id: UpgradeId): boolean {
-    if (this.adsPlaying) return false;
+    if (!this.canBuyUpgrades) return false;
     const cost = nextUpgradeCost(id, this.levels[id]);
     if (cost === null || this.coins < cost || !upgradeUnlocked(id, this.levels)) {
       this.shopPulse = { id, kind: "reject", until: this.elapsed + 0.35 };
@@ -508,6 +528,7 @@ export class World implements AdHost {
     this.autoTimer = 0;
     this.shopPulse = null;
     this.sortedCount = 0;
+    this.intermission = false;
     this.paused = false;
     this.platformPausePending = false;
     this.resumeAfterPlatform = false;
@@ -583,6 +604,8 @@ export class World implements AdHost {
       lives: this.lives,
       status: this.status,
       sortedCount: this.sortedCount,
+      intermission: this.intermission,
+      pendingDumpBonus: this.intermission ? this.dumpOffer?.bonus ?? 0 : 0,
       levels: { ...this.levels },
       bins: Object.fromEntries(this.bins.map((bin) => [bin.type, Math.max(0, bin.filled -
         this.items.filter((item) => item.type === bin.type && item.state === ITEM_STATE.Flying).length)])),
@@ -600,6 +623,10 @@ export class World implements AdHost {
     this.lives = session.lives;
     this.status = session.status;
     this.sortedCount = session.sortedCount;
+    this.intermission = session.intermission;
+    if (this.intermission && session.pendingDumpBonus > 0) {
+      this.dumpOffer = { bonus: session.pendingDumpBonus, remaining: ADS.dumpOfferSeconds };
+    }
     this.levels = mergeLevels(session.levels, this.records.tree);
     this.records.tree = { ...this.levels };
     this.rescueCooldown = session.rescueCooldown;
@@ -626,7 +653,7 @@ export class World implements AdHost {
 
   private async watchDumpDouble(): Promise<void> {
     const bonus = this.dumpOffer?.bonus ?? 0;
-    if (!this.dumpOffer || bonus <= 0) {
+    if (this.intermission || !this.dumpOffer || bonus <= 0) {
       return;
     }
     this.dumpOffer = null;
@@ -789,11 +816,13 @@ export class World implements AdHost {
       }
     }
     for (const item of finished) {
+      if (this.intermission || this.status !== "playing") break;
       this.finishAutoSort(item);
     }
   }
 
   private finishAutoSort(item: Item): void {
+    if (this.intermission) return;
     const bin = this.bins.find((entry) => entry.type === item.type);
     item.fly = null;
     if (!bin || this.status !== "playing") {
@@ -804,11 +833,13 @@ export class World implements AdHost {
   }
 
   private acceptItem(item: Item, bin: Bin): void {
+    if (this.intermission || this.status !== "playing") return;
     bin.filled += 1;
     this.completeSort(item, bin, true);
   }
 
   private completeSort(item: Item, bin: Bin, fromHand: boolean): void {
+    if (this.intermission || this.status !== "playing") return;
     const slot = this.layout.bins.find((entry) => entry.type === bin.type);
     item.state = ITEM_STATE.InBin;
     this.removeItem(item);
@@ -830,6 +861,10 @@ export class World implements AdHost {
     if (fromHand) this.manualCombo += 1;
     this.advanceMastery({ kind: "sort", combo: this.manualCombo, manual: fromHand });
     this.tryDump();
+    if (this.sortedCount % SHAPES_PER_SHIFT === 0) {
+      this.intermission = true;
+      this.pause();
+    }
     this.persistRecords();
   }
 

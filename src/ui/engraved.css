@@ -1,0 +1,62 @@
+/* Transparent, passive cuts into the same graphite surface as the game. */
+.owned-tree-map {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-width:0;
+  min-height:0;
+  pointer-events:none;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.engraved-graph {
+  display:block;
+  width:100%;
+  height:100%;
+  overflow:visible;
+  flex:none;
+}
+.engraved-node,
+.engraved-link,
+.engraved-tally {
+  fill:none;
+  stroke-linecap:square;
+  stroke-linejoin:bevel;
+}
+/* A thin reflected edge below a deep, almost black knife groove. */
+.engraved-lower {
+  stroke:#938875;
+  stroke-width:2.9;
+  opacity:.73;
+}
+.engraved-upper {
+  stroke:#03070c;
+  stroke-width:3.1;
+  opacity:.98;
+}
+.engraved-core {
+  stroke:#0b111a;
+  stroke-width:1.55;
+}
+.engraved-link-lower {
+  stroke:#827c6e;
+  stroke-width:1.75;
+  opacity:.57;
+  vector-effect:non-scaling-stroke;
+}
+.engraved-link-upper {
+  stroke:#04090f;
+  stroke-width:2.5;
+  vector-effect:non-scaling-stroke;
+}
+.engraved-link-core {
+  stroke:#0b1119;
+  stroke-width:1;
+  vector-effect:non-scaling-stroke;
+}
+.engraved-tally .engraved-link-lower { opacity:.62; }
+.engraved-tally .engraved-link-upper { stroke-width:2.7; }
+@media (prefers-contrast:more) {
+  .engraved-lower { stroke:#b4a68e; opacity:.9; }
+  .engraved-link-lower { stroke:#a59983; opacity:.85; }
+}

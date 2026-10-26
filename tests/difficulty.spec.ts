@@ -27,6 +27,7 @@ test('a complete run grows through all shifts without purchases, restores pace, 
         restored=w.paused&&w.shift.stage===4&&w.pace.speed===before.speed;
         w.resume();
       }
+      if (w.intermission) w.continueLevel();
     }
     const final={sorted:w.sortedCount,stage:w.shift.stage,levels:w.levels,noPurchases:Object.values(w.levels).every(n=>n===0),lives:w.lives,pace:w.pace,sets:w.records.progression.totalSets};
     w.status='over';

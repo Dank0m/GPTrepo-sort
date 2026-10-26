@@ -1,6 +1,7 @@
 import { BIN_CAPACITY, ECONOMY, type ItemType } from "../config.ts";
 import { activeTypes, emptyLevels, sanitizeLevels, type UpgradeLevels } from "./upgrades.ts";
 import { emptyProgression, sanitizeProgression, type Progression } from "./progression.ts";
+import { SHAPES_PER_SHIFT } from "./difficulty.ts";
 
 export type Records = {
   economyVersion: 2;
@@ -58,6 +59,8 @@ export type SessionSave = {
   lives: number;
   status: "playing" | "over";
   sortedCount: number;
+  intermission: boolean;
+  pendingDumpBonus: number;
   levels: UpgradeLevels;
   bins: Partial<Record<ItemType, number>>;
   beatBestCoins: boolean;
@@ -82,6 +85,9 @@ export function sanitizeSession(raw: unknown): SessionSave | null {
   const rawBins = object(data.bins) ?? {};
   for (const type of activeTypes(levels)) bins[type] = Math.min(BIN_CAPACITY, counter(rawBins[type]));
   const combo = counter(data.combo);
+  const sortedCount = counter(data.sortedCount);
+  const intermission = data.status === "playing" && data.intermission === true &&
+    sortedCount > 0 && sortedCount % SHAPES_PER_SHIFT === 0;
   return {
     version: 2,
     rescueCooldown: Math.min(25, counter(data.rescueCooldown)),
@@ -92,7 +98,9 @@ export function sanitizeSession(raw: unknown): SessionSave | null {
     manualCombo: Math.min(combo, counter(data.manualCombo)),
     lives: data.status === "over" ? 0 : Math.min(ECONOMY.startLives, Math.max(1, counter(data.lives))),
     status: data.status,
-    sortedCount: counter(data.sortedCount),
+    sortedCount,
+    intermission,
+    pendingDumpBonus: intermission ? Math.min(72, counter(data.pendingDumpBonus)) : 0,
     levels,
     bins,
     beatBestCoins: data.beatBestCoins === true,

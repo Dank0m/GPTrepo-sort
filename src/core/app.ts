@@ -26,7 +26,7 @@ export class App {
     this.upgradeTree = new UpgradeTree(this.world, canvas);
     this.progressPanel = new ProgressPanel(this.world, canvas);
     yandexService.onPlatformPause(() => this.world.pauseForPlatform());
-    yandexService.onPlatformResume(() => this.world.resumeFromPlatform(!this.progressPanel.isOpen && !this.upgradeTree.isInspecting));
+    yandexService.onPlatformResume(() => this.world.resumeFromPlatform(!this.progressPanel.isOpen && !this.upgradeTree.isOpen));
     this.bindResize();
     this.bindPointer();
     this.bindKeys();
@@ -99,7 +99,7 @@ export class App {
 
   private bindKeys(): void {
     window.addEventListener("keydown", (event) => {
-      if (this.progressPanel.isOpen || this.upgradeTree.isInspecting) return;
+      if (this.progressPanel.isOpen || this.upgradeTree.isOpen) return;
       if (import.meta.env.DEV && (event.key === "d" || event.key === "D")) {
         this.world.debug = !this.world.debug;
       }
@@ -123,17 +123,17 @@ export class App {
       if (document.hidden) {
         onHidden();
       } else {
-        this.world.resumeFromPlatform(!this.progressPanel.isOpen && !this.upgradeTree.isInspecting);
+        this.world.resumeFromPlatform(!this.progressPanel.isOpen && !this.upgradeTree.isOpen);
       }
     });
     window.addEventListener("blur", onHidden);
-    window.addEventListener("focus", () => this.world.resumeFromPlatform(!this.progressPanel.isOpen && !this.upgradeTree.isInspecting));
+    window.addEventListener("focus", () => this.world.resumeFromPlatform(!this.progressPanel.isOpen && !this.upgradeTree.isOpen));
   }
 
   private update(dt: number): void {
     if (this.world.treeRequested) {
       this.world.treeRequested = false;
-      if (!this.progressPanel.isOpen) this.upgradeTree.reveal("wide");
+      // Locked group pickup never opens the shop during a level.
     }
     this.world.update(dt);
   }
@@ -144,6 +144,7 @@ export class App {
     }
     drawScene(this.surface, this.world, this.loop.framesPerSecond);
     this.progressPanel.update();
+    if (this.world.intermission && !this.progressPanel.isOpen) this.upgradeTree.open();
     this.upgradeTree.update();
   }
 }

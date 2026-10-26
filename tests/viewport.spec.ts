@@ -76,6 +76,7 @@ test('fixed ad money control is absent even when rewarded SDK is available',asyn
  });
  expect(rendered.labels.join(' ')).not.toMatch(/500|реклам|FREE COINS/);
  expect(rendered.legacy).toBeUndefined();expect(rendered.buttons).toBeUndefined();
- await expect(page.locator('.skill-panel')).toContainText('Дерево улучшений');
+ await expect(page.locator('.skill-node:visible')).toHaveCount(0);
+ await expect(page.locator('.owned-tree [data-owned-upgrade]')).toHaveCount(0);
  await expect(page.getByRole('dialog')).not.toBeVisible();
 });

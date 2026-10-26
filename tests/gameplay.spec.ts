@@ -71,6 +71,7 @@ test('world rules: correct, wrong, full bins, jackpot, game over, and permanent 
     w.restart();
     const restart = { status: w.status, games: w.records.gamesPlayed, xp: w.records.progression.xp };
     w.coins = 45;
+    w.intermission = true;
     const before = w.coins;
     const bought = w.tryBuy("value");
     const upgrade = { bought, level: w.levels.value, spent: before - w.coins };

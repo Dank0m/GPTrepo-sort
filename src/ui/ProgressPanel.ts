@@ -27,13 +27,14 @@ export class ProgressPanel {
     });
     this.dialog.addEventListener("keydown", (event) => event.stopPropagation());
     document.body.append(this.button, this.dialog);
-    this.open();
+    if (!this.world.intermission) this.open();
+    else this.first = false;
   }
 
   get isOpen(): boolean { return this.dialog.open; }
 
   open(): void {
-    if (this.isOpen || this.world.adsPlaying) return;
+    if (this.isOpen || this.world.adsPlaying || this.world.intermission) return;
     this.resumeOnClose = this.first || (this.world.status === "playing" && !this.world.paused);
     this.world.pause();
     this.world.records.progression = sanitizeProgression(this.world.records.progression);
@@ -57,7 +58,7 @@ export class ProgressPanel {
     Object.assign(this.button.style, {
       left: `${field.left + layout.x}px`, top: `${field.top + layout.y}px`, width: `${layout.width}px`, height: `${layout.height}px`,
     });
-    this.button.disabled = this.world.adsPlaying;
+    this.button.disabled = this.world.adsPlaying || this.world.intermission;
     const progress = this.world.records.progression;
     const t = strings();
     const rank = rankInfo(progress.xp);

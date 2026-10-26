@@ -1,6 +1,7 @@
 import type { UpgradeId } from '../config.ts';
 export const TREE_TEXT = {
  ru: {
+  levelDone: (n: number) => `УРОВЕНЬ ${n} ПРОЙДЕН`, breakTitle: 'Время для улучшений', breakHint: 'Конвейер остановлен. Выбирай навыки без спешки.', next: 'Далее', yourSkills: 'Изученные навыки', legend: 'Тусклый — закрыт · золотой — можно купить · зелёный — максимум', selectSkill: 'Наведи курсор или нажми на навык, чтобы узнать больше.', permanentNote: 'Купленные навыки остаются с тобой.',
   scrollHint: 'Листай ↔', mapHint: 'Наведи или нажми', price: 'Цена', closeInfo: 'Закрыть подсказку',
   title: 'Дерево улучшений', open: 'Улучшения', close: 'К игре', buy: 'Купить', owned: 'Изучено', locked: 'Нужно', level: 'ур.', coins: 'Монеты',
   note: 'Навыки остаются навсегда. Монеты — ресурс партии: после проигрыша переносится 10%, не больше 20. ПКМ или кнопка группы работают после открытия широкого захвата.',
@@ -24,6 +25,7 @@ export const TREE_TEXT = {
   group:'Группа', groupLocked:'Группа закрыта', active:'Группа: ВКЛ', off:'Группа: ВЫКЛ',
  },
  en: {
+  levelDone: (n: number) => `LEVEL ${n} COMPLETE`, breakTitle: 'Time to upgrade', breakHint: 'The conveyor is stopped. Take your time choosing skills.', next: 'Next level', yourSkills: 'Learned skills', legend: 'Dim — locked · gold — affordable · green — maximum', selectSkill: 'Hover or tap a skill to learn more.', permanentNote: 'Purchased skills stay with you.',
   scrollHint: 'Swipe ↔', mapHint: 'Hover or tap', price: 'Price', closeInfo: 'Close tooltip',
   title:'Upgrade tree',open:'Upgrades',close:'Back to game',buy:'Buy',owned:'Learned',locked:'Requires',level:'lv.',coins:'Coins',
   note:'Skills are permanent. Coins belong to the run: keep 10% after defeat, capped at 20. Right-drag or the group button unlock after buying Wide pickup.',

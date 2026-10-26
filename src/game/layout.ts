@@ -28,10 +28,10 @@ export function computeLayout(width: number, height: number, types: readonly Ite
   const progress = { x: pad, y: hud.y + hud.height + (short ? 4 : 8), width: hud.width, height: short ? 30 : 50 };
   const playTop = progress.y + progress.height + (short ? 4 : pad * .35);
   const treeSide = width >= 1000 && height >= 560;
-  const treeWidth = clamp(width * .28, 286, 360);
-  const treeHeight = short ? 100 : 174;
+  const treeWidth = 244;
+  const treeHeight = short ? 72 : 112;
   const tree: Rect = treeSide
-    ? { x: width - pad - treeWidth, y: playTop, width: treeWidth, height: height - playTop - pad }
+    ? { x: width - pad - treeWidth, width: treeWidth, height: Math.min(190, height - playTop - pad), y: height - pad - Math.min(190, height - playTop - pad) }
     : { x: pad, y: height - pad - treeHeight, width: width - 2 * pad, height: treeHeight };
   const contentWidth = treeSide ? tree.x - 12 - pad : width - 2 * pad;
   const footerH = short ? 28 : 36;
@@ -40,7 +40,7 @@ export function computeLayout(width: number, height: number, types: readonly Ite
   const playBottom = shop.y - (short ? 4 : 8);
   const playH = Math.max(64, playBottom - playTop);
   const beltHeight = clamp(playH * .27, short ? 30 : 44, short ? 46 : 94);
-  const belt = { x: pad, y: playTop + (short ? 0 : 8), width: contentWidth, height: beltHeight };
+  const belt = { x: pad, y: playTop + (short ? 0 : 8), width: width - 2 * pad, height: beltHeight };
   const binAreaTop = belt.y + belt.height + (short ? 4 : 12);
   const binAreaH = Math.max(30, shop.y - binAreaTop - (short ? 4 : 8));
   const rows = types.length >= 5 && binAreaH >= 84 ? 2 : 1;
@@ -48,12 +48,12 @@ export function computeLayout(width: number, height: number, types: readonly Ite
   const gap = narrow ? 6 : 12;
   const rowGap = 6;
   const binHeight = (binAreaH - rowGap * (rows - 1)) / rows;
-  const binWidth = Math.min(160, (belt.width - gap * (cols - 1)) / cols);
+  const binWidth = Math.min(160, (contentWidth - gap * (cols - 1)) / cols);
   const bins = types.map((type, index) => {
     const row = Math.floor(index / cols), col = index % cols;
     const inRow = row === rows - 1 ? types.length - row * cols : cols;
     const rowWidth = inRow * binWidth + (inRow - 1) * gap;
-    return { type, x: belt.x + (belt.width - rowWidth) / 2 + col * (binWidth + gap), y: binAreaTop + row * (binHeight + rowGap), width: binWidth, height: binHeight, capacity: BIN_CAPACITY };
+    return { type, x: pad + (contentWidth - rowWidth) / 2 + col * (binWidth + gap), y: binAreaTop + row * (binHeight + rowGap), width: binWidth, height: binHeight, capacity: BIN_CAPACITY };
   });
   return { width, height, hud, progress, mute, pause, lang, belt, bins, shop, groupButton, tree, treeSide, itemSize: clamp(beltHeight * .58, 26, 54), narrow };
 }
