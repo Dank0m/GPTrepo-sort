@@ -19,7 +19,7 @@ export class UpgradeTree {
 
   constructor(private readonly world: World, private readonly canvas: HTMLCanvasElement) {
     this.element.className = 'owned-tree';
-    this.element.innerHTML = '<span class="owned-caption"></span><div class="owned-tree-map"></div>';
+    this.element.innerHTML = '<div class="owned-tree-map"></div>';
     this.dialog.className = 'level-break';
     this.dialog.setAttribute('aria-labelledby', 'break-title');
     this.dialog.innerHTML = `<header class="break-heading"><div><span class="break-eyebrow"></span><h1 id="break-title"></h1><p class="break-hint"></p></div><div class="break-wallet"><small></small><strong></strong></div></header>
@@ -101,7 +101,6 @@ export class UpgradeTree {
       const owned = UPGRADE_IDS.filter(id => this.world.levels[id] > 0);
       this.element.hidden = owned.length === 0;
       this.element.setAttribute('aria-label', `${t.yourSkills}: ${owned.map(id => `${t.names[id]} ${this.world.levels[id]}`).join(', ')}`);
-      this.element.querySelector('.owned-caption')!.textContent = t.yourSkills;
       this.element.querySelector('.owned-tree-map')!.innerHTML = renderEngravedGraph(this.world.levels);
     }
     if (!this.isOpen) return;
