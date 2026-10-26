@@ -49,10 +49,10 @@ for (const viewport of [{ width:568,height:320 }, { width:560,height:320 }, { wi
     const geometry = await page.evaluate(async () => {
       const { computeLayout } = await import('/src/game/layout.ts');
       const { dumpOfferUi, gameOverUi } = await import('/src/game/adLayout.ts');
-      const l = computeLayout(innerWidth,innerHeight,['red','blue','yellow','green','purple','orange'],{freeCoins:true});
+      const l = computeLayout(innerWidth,innerHeight,['red','blue','yellow','green','purple','orange']);
       const offer = dumpOfferUi(innerWidth,innerHeight);
       const gameOver = gameOverUi(innerWidth,innerHeight,{record:true});
-      const all = [l.hud,l.progress,l.belt,...l.bins,l.treeButton,l.groupButton,offer.box,offer.doubleBtn,offer.dismissBtn,gameOver.box,gameOver.restartBtn];
+      const all = [l.hud,l.progress,l.belt,...l.bins,l.tree,l.groupButton,offer.box,offer.doubleBtn,offer.dismissBtn,gameOver.box,gameOver.restartBtn];
       const band = document.querySelector('.progress-strip')!;
       return {
         inside: all.every(r => r.x>=0&&r.y>=0&&r.x+r.width<=innerWidth&&r.y+r.height<=innerHeight),
@@ -76,6 +76,6 @@ test('fixed ad money control is absent even when rewarded SDK is available',asyn
  });
  expect(rendered.labels.join(' ')).not.toMatch(/500|реклам|FREE COINS/);
  expect(rendered.legacy).toBeUndefined();expect(rendered.buttons).toBeUndefined();
- await page.getByRole('button',{name:'Улучшения',exact:true}).click();
- await expect(page.getByRole('dialog')).toContainText('Дерево улучшений');
+ await expect(page.locator('.skill-panel')).toContainText('Дерево улучшений');
+ await expect(page.getByRole('dialog')).not.toBeVisible();
 });

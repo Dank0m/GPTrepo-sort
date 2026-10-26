@@ -68,8 +68,8 @@ export function drawHint(ctx: CanvasRenderingContext2D, world: World): void {
   ctx.fillStyle = COLORS.muted;
   ctx.font = "600 14px ui-rounded, system-ui, sans-serif";
   ctx.textAlign = "center";
-  ctx.textBaseline = "bottom";
-  ctx.fillText(strings().hint, belt.x + belt.width / 2, belt.y - 8, belt.width - 8);
+  ctx.textBaseline = "top";
+  ctx.fillText(strings().hint, belt.x + belt.width / 2, belt.y + 8, belt.width - 8);
   ctx.restore();
 }
 

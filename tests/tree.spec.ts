@@ -1,20 +1,19 @@
 import {test,expect} from '@playwright/test';
 
-test('tree UI enforces dependencies and money, persists wide pickup across defeat and reload',async({page})=>{
+test('visible icon tree enforces dependencies and persists purchases after defeat and reload', async ({page}) => {
  await page.goto('/');await page.getByRole('dialog').waitFor();
  await page.evaluate(async()=>{
   const {World}=await import('/src/game/world.ts');const {emptyRecords}=await import('/src/game/save.ts');
   const w=new World(800,700,emptyRecords());w.coins=140;(w as any).persistRecords();
  });
  await page.reload();await page.getByRole('button',{name:'Продолжить',exact:true}).click();
- await page.getByRole('button',{name:'Улучшения',exact:true}).click();
- const tree=page.getByRole('dialog');await expect(tree).toContainText('Контроль ленты');
- await expect(page.locator('[data-upgrade="wide"]')).toBeDisabled();
+ const tree=page.locator('.skill-panel');await expect(tree).toBeVisible();
+ await expect(page.getByRole('dialog')).not.toBeVisible();
+ await expect(page.locator('[data-upgrade="wide"]')).toHaveAttribute('aria-disabled','true');
  await page.locator('[data-upgrade="buffer"]').click();
- await expect(page.locator('[data-upgrade="wide"]')).toBeEnabled();
+ await expect(page.locator('[data-upgrade="wide"]')).toHaveAttribute('aria-disabled','false');
  await page.locator('[data-upgrade="wide"]').click();
- await expect(tree).toContainText('Монеты: 0');
- await page.getByRole('button',{name:'К игре',exact:true}).click();
+ await expect(tree).toContainText('2/19');
  const data=await page.evaluate(async()=>{
   const {World}=await import('/src/game/world.ts');const {loadRecords}=await import('/src/game/save.ts');
   const w=new World(800,700,loadRecords());w.resume();
@@ -23,8 +22,7 @@ test('tree UI enforces dependencies and money, persists wide pickup across defea
  });
  expect(data).toMatchObject({wide:1,buffer:1,coins:0,saved:{wide:1,buffer:1}});
  await page.reload();await page.getByRole('button',{name:'Продолжить',exact:true}).click();
- await page.getByRole('button',{name:'Улучшения',exact:true}).click();
- await expect(page.locator('[data-upgrade="wide"]').locator('..')).toContainText('1/2');
+ await expect(page.locator('[data-upgrade="wide"] .skill-level')).toHaveText('1/2');
 });
 
 test('wide pickup is locked at start and mobile group mode requires the same skill',async({page})=>{
@@ -93,11 +91,78 @@ test('service window creates bounded respite after a set and its timer does not 
  expect(result).toEqual({ratio:.75,paused:6,remaining:0,normalAgain:true});
 });
 
-for(const viewport of [{width:320,height:568},{width:568,height:320}]){
- test(`tree can be scrolled and closed at ${viewport.width}x${viewport.height}`,async({page})=>{
+
+for (const viewport of [{width:1280,height:720},{width:320,height:568},{width:568,height:320},{width:320,height:320}]) {
+ test(`tree stays in the playfield and icons can be reached at ${viewport.width}x${viewport.height}`,async({page})=>{
   await page.setViewportSize(viewport);await page.goto('/');await page.getByRole('button',{name:'Начать сортировку',exact:true}).click();
-  await page.getByRole('button',{name:'Улучшения',exact:true}).click();
-  const nodes=page.locator('.tree-node');await expect(nodes).toHaveCount(12);await nodes.last().scrollIntoViewIfNeeded();
-  await expect(nodes.last()).toBeVisible();await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(page.locator('.skill-panel')).toBeVisible();
+  await expect(page.locator('.skill-node')).toHaveCount(12);
+  await expect(page.locator('.tree-open')).toHaveCount(0);
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  const node=page.locator('[data-upgrade="type"]');await node.scrollIntoViewIfNeeded();await node.hover();
+  await expect(page.getByRole('tooltip')).toContainText('Новые материалы');
+  const geometry=await page.evaluate(async()=>{
+   const {computeLayout}=await import('/src/game/layout.ts');
+   const canvas=document.querySelector('canvas')!.getBoundingClientRect();
+   const l=computeLayout(canvas.width,canvas.height,['red','blue','yellow','green','purple','orange']);
+   const t=document.querySelector('.skill-panel')!.getBoundingClientRect();
+   const p=document.querySelector('.skill-popover')!.getBoundingClientRect();
+   const separate=(a:any,b:any)=>a.x+a.width<=b.x||b.x+b.width<=a.x||a.y+a.height<=b.y||b.y+b.height<=a.y;
+   return {panelInside:t.left>=0&&t.top>=0&&t.right<=innerWidth&&t.bottom<=innerHeight,
+    noOverlap:[l.belt,...l.bins,l.groupButton].every(r=>separate(r,l.tree)),
+    tooltipInside:p.left>=0&&p.top>=0&&p.right<=innerWidth&&p.bottom<=innerHeight};
+  });
+  expect(geometry).toEqual({panelInside:true,noOverlap:true,tooltipInside:true});
  });
 }
+
+test('hover shows name, effect, cost and prerequisite; keyboard can inspect locked skills',async({page})=>{
+ await page.goto('/');await page.getByRole('button',{name:'Начать сортировку',exact:true}).click();
+ await page.locator('[data-upgrade="buffer"]').hover();
+ await expect(page.getByRole('tooltip')).toContainText('Разделители');
+ await expect(page.getByRole('tooltip')).toContainText('Цена: 40');
+ await page.locator('[data-upgrade="magnet"]').focus();
+ await expect(page.getByRole('tooltip')).toContainText('Нужно: Широкий захват ур. 1');
+ await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).not.toBeVisible();
+ await expect(page.locator('.skill-panel')).toBeVisible();
+});
+
+test('touch opens a pinned tooltip, buys only through its button, and resumes on outside tap',async({browser})=>{
+ const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true});
+ const page=await context.newPage();await page.goto('/');await page.getByRole('dialog').waitFor();
+ await page.evaluate(async()=>{
+  const {World}=await import('/src/game/world.ts');const {emptyRecords}=await import('/src/game/save.ts');
+  const w=new World(390,844,emptyRecords());w.coins=140;(w as any).persistRecords();
+ });
+ await page.reload();await page.getByRole('button',{name:'Продолжить',exact:true}).tap();
+ await page.locator('[data-upgrade="buffer"]').tap();
+ await expect(page.getByRole('tooltip')).toContainText('Разделители');
+ let state=await page.evaluate(()=>JSON.parse(localStorage.getItem('sortup-session-v1')!));
+ expect(state.levels.buffer).toBe(0);expect(state.coins).toBe(140);
+ await page.locator('.skill-buy').tap();
+ await expect(page.locator('[data-upgrade="buffer"] .skill-level')).toHaveText('1/2');
+ const before=await page.evaluate(()=>JSON.parse(localStorage.getItem('sortup-session-v1')!).coins);
+ await page.waitForTimeout(1000);
+ expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('sortup-session-v1')!).coins)).toBe(before);
+ await page.locator('.skill-close').tap();await expect(page.getByRole('tooltip')).not.toBeVisible();
+ await expect(page.locator('.skill-panel')).toBeVisible();
+ await context.close();
+});
+
+
+test('mobile tree scrolls with a real horizontal touch gesture without scrolling the page',async({browser})=>{
+ const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true});
+ const page=await context.newPage();await page.goto('/');await page.getByRole('button',{name:'Начать сортировку',exact:true}).tap();
+ const box=(await page.locator('.skill-scroll').boundingBox())!;
+ const cdp=await context.newCDPSession(page);
+ const y=box.y+box.height/2;
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:box.x+box.width-30,y}]});
+ for(let step=1;step<=8;step++){
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:box.x+box.width-30-step*32,y}]});
+  await page.waitForTimeout(20);
+ }
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+ await expect.poll(()=>page.locator('.skill-scroll').evaluate(e=>e.scrollLeft)).toBeGreaterThan(100);
+ expect(await page.evaluate(()=>({x:scrollX,y:scrollY}))).toEqual({x:0,y:0});
+ await expect(page.locator('.skill-panel')).toBeVisible();await context.close();
+});

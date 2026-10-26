@@ -32,7 +32,7 @@ test('pause, ad, resize and cancel release the whole group; right click never bu
    outcomes.push(w.groupGrab===null&&w.grabbed===null&&w.items.every(i=>i.state==='onBelt'));
   }
   localStorage.removeItem('sortup-session-v1');const w=new World(800,700,emptyRecords());w.levels.buffer=1;w.levels.wide=1;w.resume();w.coins=1000;
-  const shop=w.layout.treeButton;w.pointerDown(shop.x+10,shop.y+10,2);
+  const shop=w.layout.tree;w.pointerDown(shop.x+10,shop.y+10,2);
   return {outcomes,coins:w.coins,speed:w.levels.speed};
  });
  expect(result).toEqual({outcomes:[true,true,true,true],coins:1000,speed:0});

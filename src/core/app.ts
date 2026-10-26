@@ -26,7 +26,7 @@ export class App {
     this.upgradeTree = new UpgradeTree(this.world, canvas);
     this.progressPanel = new ProgressPanel(this.world, canvas);
     yandexService.onPlatformPause(() => this.world.pauseForPlatform());
-    yandexService.onPlatformResume(() => this.world.resumeFromPlatform(!this.progressPanel.isOpen && !this.upgradeTree.isOpen));
+    yandexService.onPlatformResume(() => this.world.resumeFromPlatform(!this.progressPanel.isOpen && !this.upgradeTree.isInspecting));
     this.bindResize();
     this.bindPointer();
     this.bindKeys();
@@ -99,7 +99,7 @@ export class App {
 
   private bindKeys(): void {
     window.addEventListener("keydown", (event) => {
-      if (this.progressPanel.isOpen || this.upgradeTree.isOpen) return;
+      if (this.progressPanel.isOpen || this.upgradeTree.isInspecting) return;
       if (import.meta.env.DEV && (event.key === "d" || event.key === "D")) {
         this.world.debug = !this.world.debug;
       }
@@ -123,17 +123,17 @@ export class App {
       if (document.hidden) {
         onHidden();
       } else {
-        this.world.resumeFromPlatform(!this.progressPanel.isOpen && !this.upgradeTree.isOpen);
+        this.world.resumeFromPlatform(!this.progressPanel.isOpen && !this.upgradeTree.isInspecting);
       }
     });
     window.addEventListener("blur", onHidden);
-    window.addEventListener("focus", () => this.world.resumeFromPlatform(!this.progressPanel.isOpen && !this.upgradeTree.isOpen));
+    window.addEventListener("focus", () => this.world.resumeFromPlatform(!this.progressPanel.isOpen && !this.upgradeTree.isInspecting));
   }
 
   private update(dt: number): void {
     if (this.world.treeRequested) {
       this.world.treeRequested = false;
-      if (!this.progressPanel.isOpen) this.upgradeTree.open();
+      if (!this.progressPanel.isOpen) this.upgradeTree.reveal("wide");
     }
     this.world.update(dt);
   }

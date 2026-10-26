@@ -128,8 +128,8 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     await expect(dialog).not.toBeVisible();
     const geometry = await page.evaluate(async () => {
       const { computeLayout } = await import('/src/game/layout.ts');
-      const l = computeLayout(innerWidth, innerHeight, ['red','blue','yellow','green','purple','orange'], { freeCoins: true });
-      return { inside: [l.hud, l.progress, l.belt, ...l.bins, l.treeButton,l.groupButton].every(r => r.x >= 0 && r.y >= 0 && r.x+r.width <= innerWidth+1 && r.y+r.height <= innerHeight+1), overlap: l.progress.y+l.progress.height > l.belt.y, scroll: document.documentElement.scrollWidth > innerWidth };
+      const l = computeLayout(innerWidth, innerHeight, ['red','blue','yellow','green','purple','orange']);
+      return { inside: [l.hud, l.progress, l.belt, ...l.bins, l.tree,l.groupButton].every(r => r.x >= 0 && r.y >= 0 && r.x+r.width <= innerWidth+1 && r.y+r.height <= innerHeight+1), overlap: l.progress.y+l.progress.height > l.belt.y, scroll: document.documentElement.scrollWidth > innerWidth };
     });
     expect(geometry).toEqual({ inside: true, overlap: false, scroll: false });
   });

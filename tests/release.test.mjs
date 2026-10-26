@@ -50,7 +50,7 @@ test('production boot, sorting and saved session work under a Yandex-style versi
     while(!shape&&Date.now()<deadline){await page.waitForTimeout(80);shape=await scan();}
     assert.ok(shape,'first shape is visible and production loop is running');
     await page.mouse.move(origin.x+shape.x+10,origin.y+shape.y+10);await page.mouse.down();
-    await page.mouse.move(origin.x+228,origin.y+400,{steps:4});await page.mouse.up();
+    await page.mouse.move(origin.x+layout.bins[0].x+layout.bins[0].width/2,origin.y+layout.bins[0].y+layout.bins[0].height/2+34,{steps:4});await page.mouse.up();
     await page.waitForFunction(()=>JSON.parse(localStorage.getItem('sortup-records')||'{}').progression?.totalSorted===1,{},{timeout:5000});
     await page.reload();
     await page.getByRole('button',{name:'Продолжить',exact:true}).waitFor();

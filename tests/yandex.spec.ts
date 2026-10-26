@@ -259,7 +259,7 @@ test("permanent skill trees merge across devices without losing local or cloud p
 });
 
 
-test("service timers survive a rewarded offer and opening the tree does not leave it paused", async ({ page }) => {
+test("service timers survive a rewarded offer and inspecting a pinned skill tooltip does not leave it paused", async ({ page }) => {
   await fakeSdk(page);
   await loaded(page);
   const result = await page.evaluate(async () => {
@@ -277,7 +277,7 @@ test("service timers survive a rewarded offer and opening the tree does not leav
     w.update(4);
     const duringOffer = { pulse: w.pulseRemaining, rescue: w.rescueCooldown };
     const tree = new UpgradeTree(w, document.querySelector("canvas")!);
-    tree.open();
+    tree.reveal("pulse");
     tree.close();
     const paused = w.paused;
     w.update(2); // Offer timeout finishes; no belt time elapses in this frame.

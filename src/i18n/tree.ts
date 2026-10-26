@@ -1,6 +1,7 @@
 import type { UpgradeId } from '../config.ts';
 export const TREE_TEXT = {
  ru: {
+  scrollHint: 'Листай ↔', mapHint: 'Наведи или нажми', price: 'Цена', closeInfo: 'Закрыть подсказку',
   title: 'Дерево улучшений', open: 'Улучшения', close: 'К игре', buy: 'Купить', owned: 'Изучено', locked: 'Нужно', level: 'ур.', coins: 'Монеты',
   note: 'Навыки остаются навсегда. Монеты — ресурс партии: после проигрыша переносится 10%, не больше 20. ПКМ или кнопка группы работают после открытия широкого захвата.',
   migration: 'Экономика обновлена: мастерство и задания сохраняются. Старые монеты, рекорд монет и сессионные улучшения из версии 1.0 не переносятся. Новые покупки дерева постоянные.',
@@ -23,6 +24,7 @@ export const TREE_TEXT = {
   group:'Группа', groupLocked:'Группа закрыта', active:'Группа: ВКЛ', off:'Группа: ВЫКЛ',
  },
  en: {
+  scrollHint: 'Swipe ↔', mapHint: 'Hover or tap', price: 'Price', closeInfo: 'Close tooltip',
   title:'Upgrade tree',open:'Upgrades',close:'Back to game',buy:'Buy',owned:'Learned',locked:'Requires',level:'lv.',coins:'Coins',
   note:'Skills are permanent. Coins belong to the run: keep 10% after defeat, capped at 20. Right-drag or the group button unlock after buying Wide pickup.',
   migration:'Economy update: mastery and missions are preserved. Coins, coin records and session upgrades from version 1.0 do not carry over. New tree purchases are permanent.',

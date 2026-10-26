@@ -289,7 +289,7 @@ export class World implements AdHost {
       return false;
     }
     sfx.unlock();
-    if (pointInRect(x, y, this.layout.treeButton)) { this.treeRequested = true; return false; }
+    if (pointInRect(x, y, this.layout.tree)) return false;
     if (pointInRect(x, y, this.layout.groupButton)) {
       if (this.levels.wide) this.groupMode = !this.groupMode;
       else this.treeRequested = true;
